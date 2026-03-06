@@ -41,16 +41,8 @@ public class UsersController : ControllerBase
         [FromQuery] int limit,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var users = await _userService.GetUsersAsync(page, limit, cancellationToken);
-            return Ok(ApiResponse<IReadOnlyList<UserDto>>.Ok(users));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error fetching users");
-            return StatusCode(500, ApiResponse<IReadOnlyList<UserDto>>.Fail("Internal server error", HttpStatusCode.InternalServerError));
-        }
+        var users = await _userService.GetUsersAsync(page, limit, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<UserDto>>.Ok(users));
     }
 
     [HttpGet("{id}")]
@@ -493,6 +485,8 @@ app.UseRequestLogging();
 
 ### Global Exception Handler
 
+All unhandled exceptions are caught here, logged, and returned as a consistent `ApiResponse.Fail(...)` envelope. Controllers should **not** use try/catch for response shaping — let exceptions bubble up to this handler (see [common/logging.md](../common/logging.md)).
+
 ```csharp
 // Program.cs
 app.UseExceptionHandler(errorApp =>
@@ -505,22 +499,22 @@ app.UseExceptionHandler(errorApp =>
         var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
         logger.LogError(exception, "Unhandled exception");
 
-        context.Response.StatusCode = exception switch
+        var statusCode = exception switch
         {
             NotFoundException => StatusCodes.Status404NotFound,
             UnauthorizedAccessException => StatusCodes.Status401Unauthorized,
             _ => StatusCodes.Status500InternalServerError
         };
 
+        context.Response.StatusCode = statusCode;
         context.Response.ContentType = "application/json";
-        
-        var response = new
-        {
-            error = exception?.Message ?? "An error occurred",
-            statusCode = context.Response.StatusCode
-        };
 
-        await context.Response.WriteAsJsonAsync(response);
+        var message = statusCode == StatusCodes.Status500InternalServerError
+            ? "Internal server error"
+            : exception?.Message ?? "An error occurred";
+
+        await context.Response.WriteAsJsonAsync(
+            ApiResponse<object>.Fail(message, (HttpStatusCode)statusCode));
     });
 });
 ```
