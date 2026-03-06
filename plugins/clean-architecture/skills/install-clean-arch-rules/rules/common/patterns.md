@@ -97,24 +97,27 @@ Method names MUST start with entity type to enable grouping by entity:
 - `UserFindAll()`, `UserFindById(123)`, `UserCreate(userData)`
 - `OrderFindAll()`, `OrderFindById(456)`, `OrderUpdate(456, orderData)`
 
-**Immutability Requirement (CRITICAL)**:
-Repository methods MUST NOT modify passed-in entities. Always return new instances:
-- ✅ `newUser = UserCreate(userData)` - Returns new entity
-- ✅ `updatedUser = UserUpdate(id, changes)` - Returns new entity with changes applied
-- ❌ `UserUpdate(user)` where `user` is modified in-place - FORBIDDEN
-
-**Domain vs Entity Separation**:
+**Domain vs Entity Separation (CRITICAL)**:
 - Repository interfaces operate on **domain model classes** (defined in Abstractions), NOT on ORM entity classes
-- ORM entity classes (navigation properties, `[Table]` attributes, etc.) are an implementation detail of the Repository layer
+- ORM entity classes (navigation properties, `[Table]` attributes, etc.) are an implementation detail of the Repository layer and MUST NOT leak outside it
 - Repository implementations map between domain models and ORM entities internally
 - Services and other consumers never see or depend on ORM entity classes
 
+**Repository Contract**:
+- Read methods return **new domain model instances** mapped from persistence — callers never receive tracked ORM objects
+- Write methods accept domain models, map them to ORM entities internally, perform persistence, and return **new domain model instances** reflecting the saved state
+- The ORM's change-tracking, identity map, and mutation are confined to the repository implementation — they are invisible to callers
+- ✅ `newUser = UserCreate(userData)` — Returns a new domain model mapped from the saved entity
+- ✅ `updatedUser = UserUpdate(id, changes)` — Returns a new domain model reflecting persisted changes
+- ❌ Returning tracked ORM entities to callers — FORBIDDEN
+- ❌ Accepting or returning ORM entity types in the repository interface — FORBIDDEN
+
 **Benefits**:
 - Methods grouped by entity type in IDE autocomplete
-- Business logic doesn't know about storage mechanism
-- Easy to swap data sources (SQL → NoSQL → API)
-- Simplified testing with mocks
-- No side effects - predictable, testable code
+- Business logic doesn't know about storage mechanism or ORM behavior
+- Easy to swap data sources (SQL → NoSQL → API) — callers are persistence-ignorant
+- Simplified testing with mocks — no change-tracker concerns in tests
+- Predictable, testable code — callers work with plain domain objects
 
 See language-specific rules (csharp, typescript) for implementation details.
 

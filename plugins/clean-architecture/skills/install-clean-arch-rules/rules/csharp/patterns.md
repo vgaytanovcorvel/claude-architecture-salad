@@ -12,9 +12,9 @@ Encapsulate data access behind a consistent interface. Repository interfaces ope
 
 **Naming Convention** (Repositories only — does NOT apply to Services): Methods MUST start with entity type for grouping (e.g., `UserGetByIdAsync`, `UserAddAsync`). Service interfaces use natural application-level naming (e.g., `GetUserByIdAsync`, `CreateUserAsync`).
 
-**Immutability**: Repository methods MUST NOT modify passed-in domain models - always return new instances.
+**Domain vs Entity Separation (CRITICAL)**: ORM entity classes (with navigation properties, `[Table]` attributes, etc.) are defined in the Repository project as an implementation detail and MUST NOT leak outside it. Repository implementations map between domain models and ORM entities internally.
 
-**Domain vs Entity Separation**: ORM entity classes (with navigation properties, `[Table]` attributes, etc.) are defined in the Repository project as an implementation detail. Repository implementations map between domain models and ORM entities internally.
+**Repository Contract**: Read methods use `AsNoTracking()` and return new domain model instances. Write methods accept domain models, map to EF Core entities, persist via change tracking internally, and return new domain model instances reflecting the saved state. EF Core's change tracking and mutation are confined to the repository implementation — callers only ever see plain domain objects.
 
 ```csharp
 // Repository interface — operates on domain models, NOT EF Core entities
@@ -81,6 +81,18 @@ public class UserRepository : IUserRepository
         var entry = await _dbContext.Users.AddAsync(entity, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
         return MapToDomain(entry.Entity);
+    }
+
+    public async Task<User> UserUpdateAsync(User user, CancellationToken cancellationToken)
+    {
+        // Map domain model to a new EF entity, attach, and mark modified
+        var entity = MapToEntity(user);
+        _dbContext.Users.Update(entity);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        // Detach so tracked state doesn't leak; return a fresh domain model
+        _dbContext.Entry(entity).State = EntityState.Detached;
+        return MapToDomain(entity);
     }
 
     // ... other methods follow the same pattern
