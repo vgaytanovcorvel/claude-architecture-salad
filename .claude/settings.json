@@ -1,0 +1,10 @@
+{
+  "skills": {
+    "bootstrap-clean-arch": {
+      "path": "plugins/clean-architecture/skills/bootstrap-clean-arch/SKILL.md"
+    },
+    "install-clean-arch-rules": {
+      "path": "plugins/clean-architecture/skills/install-clean-arch-rules/SKILL.md"
+    }
+  }
+}

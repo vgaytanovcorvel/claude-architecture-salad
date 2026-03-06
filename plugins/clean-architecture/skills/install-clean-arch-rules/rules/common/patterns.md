@@ -1,0 +1,140 @@
+# Common Patterns
+
+## SOLID Principles
+
+### Single Responsibility Principle (SRP)
+A class should have one, and only one, reason to change.
+
+**Anti-pattern**: God class doing everything
+```
+class UserManager {
+  validateUser()
+  saveToDatabase()
+  sendEmail()
+  generateReport()
+  logActivity()
+}
+```
+
+**Correct**: Separate concerns
+```
+class UserValidator { validateUser() }
+class UserRepository { save() }
+class EmailService { send() }
+class ReportGenerator { generate() }
+class ActivityLogger { log() }
+```
+
+### Open/Closed Principle (OCP)
+Software entities should be open for extension but closed for modification.
+
+Use interfaces/abstractions to allow extension without modifying existing code.
+
+### Liskov Substitution Principle (LSP)
+Subtypes must be substitutable for their base types without altering correctness.
+
+### Interface Segregation Principle (ISP)
+No client should be forced to depend on methods it does not use. Create focused, specific interfaces.
+
+### Dependency Inversion Principle (DIP)
+Depend on abstractions, not concretions. High-level modules should not depend on low-level modules.
+
+## Clean Architecture Layers
+
+Organize code into clean, dependency-flowing layers:
+
+```
+┌─────────────────────────────────────┐
+│         Presentation Layer          │  ← Controllers, Views, API endpoints
+│         (UI, API, CLI)              │
+└──────────────┬──────────────────────┘
+               │ depends on ↓
+┌──────────────┴──────────────────────┐
+│       Application Layer             │  ← Use cases, business logic
+│    (Services, Commands, Queries)    │
+└──────────────┬──────────────────────┘
+               │ depends on ↓
+┌──────────────┴──────────────────────┐
+│         Domain Layer                │  ← Entities, value objects, domain logic
+│    (Business rules, no dependencies)│
+└──────────────△──────────────────────┘
+               │ implemented by
+┌──────────────┴──────────────────────┐
+│      Infrastructure Layer           │  ← Database, external services, file I/O
+│   (EF Core, HTTP clients, storage)  │
+└─────────────────────────────────────┘
+```
+
+**Dependency Rule**: Inner layers NEVER depend on outer layers.
+
+## Skeleton Projects
+
+When implementing new functionality:
+1. Search for battle-tested skeleton projects
+2. Use parallel agents to evaluate options:
+   - Security assessment
+   - Extensibility analysis
+   - Relevance scoring
+   - Implementation planning
+3. Clone best match as foundation
+4. Iterate within proven structure
+
+## Design Patterns
+
+### Repository Pattern
+
+Encapsulate data access behind a consistent interface:
+
+**Naming Convention**:
+Method names MUST start with entity type to enable grouping by entity:
+- `{Entity}FindAll()` or `{Entity}GetAllAsync()` - Retrieve all entities
+- `{Entity}FindById(id)` or `{Entity}GetByIdAsync(id)` - Retrieve single entity
+- `{Entity}Create(data)` or `{Entity}AddAsync(data)` - Create new entity
+- `{Entity}Update(id, data)` or `{Entity}UpdateAsync(id, data)` - Update existing entity
+- `{Entity}Delete(id)` or `{Entity}DeleteAsync(id)` - Delete entity
+
+**Examples**:
+- `UserFindAll()`, `UserFindById(123)`, `UserCreate(userData)`
+- `OrderFindAll()`, `OrderFindById(456)`, `OrderUpdate(456, orderData)`
+
+**Immutability Requirement (CRITICAL)**:
+Repository methods MUST NOT modify passed-in entities. Always return new instances:
+- ✅ `newUser = UserCreate(userData)` - Returns new entity
+- ✅ `updatedUser = UserUpdate(id, changes)` - Returns new entity with changes applied
+- ❌ `UserUpdate(user)` where `user` is modified in-place - FORBIDDEN
+
+**Domain vs Entity Separation**:
+- Repository interfaces operate on **domain model classes** (defined in Abstractions), NOT on ORM entity classes
+- ORM entity classes (navigation properties, `[Table]` attributes, etc.) are an implementation detail of the Repository layer
+- Repository implementations map between domain models and ORM entities internally
+- Services and other consumers never see or depend on ORM entity classes
+
+**Benefits**:
+- Methods grouped by entity type in IDE autocomplete
+- Business logic doesn't know about storage mechanism
+- Easy to swap data sources (SQL → NoSQL → API)
+- Simplified testing with mocks
+- No side effects - predictable, testable code
+
+See language-specific rules (csharp, typescript) for implementation details.
+
+### API Response Format
+
+Use a consistent envelope for all API responses:
+
+```
+{
+  "success": boolean,    // true for successful operations, false for errors
+  "data": T | null,      // Response payload (null on error)
+  "error": string | null,// Error message (null on success)
+  "errorCode": number    // REQUIRED — HTTP status code (e.g., 200, 404, 500). Defaults to 200 for success responses.
+}
+```
+
+**CRITICAL**: `errorCode` is ALWAYS required on every response. For success responses, use HTTP 200 (OK) unless a different status applies. For failure responses, always specify the appropriate HTTP error code.
+
+**Benefits**:
+- Consistent client-side error handling
+- Clear success/failure indication
+- Standardized pagination metadata
+- Programmatic error code handling via `errorCode`
