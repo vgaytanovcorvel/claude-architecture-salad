@@ -1,0 +1,32 @@
+# IDE
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# .NET build
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+*.nupkg
+*.snupkg
+project.lock.json
+
+# Node
+node_modules/
+dist/
+.angular/
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# Misc
+*.log
+*.tmp

@@ -32,7 +32,10 @@ If arguments are missing or ambiguous, ask the user.
    - `csharp/coding-style.md` — coding conventions that apply to generated code.
    - `csharp/patterns.md` — patterns to follow in generated code.
    - `common/coding-style.md` — universal coding conventions.
-3. Build a catalog of rules organized by language and concern (same as described in the bootstrap-claude-md skill).
+3. Build a catalog of rules organized by:
+   - **Language**: common (applies to all), csharp, typescript
+   - **Concern**: coding-style, testing, security, patterns, performance, logging, modularization
+   - **Applicability criteria**: What kind of project/module does each rule apply to? (e.g., backend services, Angular apps, test projects, shared libraries)
 
 ## Step 3 — Read Root CLAUDE.md
 

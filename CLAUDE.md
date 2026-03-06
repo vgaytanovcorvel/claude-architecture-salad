@@ -11,41 +11,42 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 plugins/
   <plugin-name>/
-    skills/      # Claude Code skill definitions
-    rules/       # Coding rules referenced by skills and generated CLAUDE.md files
-    docs/        # Plugin documentation
+    skills/
+      <skill-name>/
+        SKILL.md       # Skill definition with frontmatter (name, description, argument-hint)
+        rules/         # Bundled rule files deployed by the skill (if applicable)
 ```
 
-Each plugin is self-contained under `plugins/<plugin-name>/`.
+Each plugin is self-contained under `plugins/<plugin-name>/`. Rules are bundled inside the skill that deploys them (e.g., `install-clean-arch-rules/rules/`).
 
 ### Plugins
 
 | Plugin | Path | Status | Description |
 |--------|------|--------|-------------|
-| **Clean Architecture** | `plugins/clean-architecture/` | First plugin | Scaffolds clean architecture projects, installs coding rules, and generates per-module CLAUDE.md files |
+| **Clean Architecture** | `plugins/clean-architecture/` | First plugin | Scaffolds .NET clean architecture projects, installs coding rules, and generates per-module CLAUDE.md files |
 
 ## Available Skills
 
 ### Clean Architecture
 
-- `/bootstrap-clean-arch` — Scaffold clean architecture projects and generate per-module CLAUDE.md files. Reads modularization rules from the plugin's `rules/` folder to determine project structure and dependency boundaries.
-- `/install-clean-arch-rules` — Install clean architecture coding rules into the target repo's `/rules` folder (common, csharp, typescript rule sets).
+- `/install-clean-arch-rules` — Deploy bundled coding rules (common, csharp, typescript) to target repo's `/rules` folder. Run this first.
+- `/bootstrap-clean-arch` — Scaffold a .NET clean architecture solution and generate per-module CLAUDE.md files. Requires rules to be deployed first.
 
 ## Development Workflow
 
-This is a skills/plugin repository — the primary artifacts are skill definitions and rule files, not compiled application code. There is no build step or test suite yet.
+This is a skills/plugin repository — the primary artifacts are SKILL.md definitions and rule files, not compiled application code. There is no build step or test suite.
 
 ### Adding a New Plugin
 
-1. Create a new directory under `plugins/<plugin-name>/` with `skills/`, `rules/`, and `docs/` subdirectories
-2. Define skill files under `skills/`
-3. Create corresponding rule files under `rules/`
-4. Add documentation under `docs/`
-5. Update this CLAUDE.md with the new plugin entry in the Plugins table and Available Skills section
+1. Create `plugins/<plugin-name>/skills/<skill-name>/SKILL.md` for each skill
+2. Bundle any rule files alongside the skill that deploys them
+3. Update this CLAUDE.md with the new plugin entry in the Plugins table and Available Skills section
+4. Update README.md with usage instructions
 
 ## Conventions
 
 - Main branch: `main`
 - Plugin directories use kebab-case (e.g. `clean-architecture`)
-- Skills follow the Claude Code skill format and are registered in `.claude/settings.json` or equivalent
-- Rule files are plain text/markdown and are meant to be machine-readable by Claude Code
+- Each skill is a directory containing a `SKILL.md` with YAML frontmatter (`name`, `description`, `argument-hint`)
+- Rule files are plain text/markdown, machine-readable by Claude Code
+- Skills reference each other by their `/skill-name` invocation name
