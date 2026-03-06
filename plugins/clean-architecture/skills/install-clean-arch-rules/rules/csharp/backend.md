@@ -417,13 +417,10 @@ app.UseAuthentication();
 // 7. Authorization
 app.UseAuthorization();
 
-// 8. Rate limiting
-app.UseRateLimiter();
-
-// 9. Response caching
+// 8. Response caching
 app.UseResponseCaching();
 
-// 10. Endpoints (last)
+// 9. Endpoints (last)
 app.MapControllers();
 // or app.MapGroup("/api/users");
 
@@ -665,7 +662,7 @@ public class UsersV2Controller : ControllerBase
 }
 ```
 
-## Response Caching & Rate Limiting
+## Response Caching
 
 ```csharp
 // Output caching (.NET 7+)
@@ -684,27 +681,6 @@ app.MapGet("/api/users", async (IUserService userService) =>
     return Results.Ok(users);
 })
 .CacheOutput("Expire30s");
-
-// Rate limiting
-builder.Services.AddRateLimiter(options =>
-{
-    options.AddFixedWindowLimiter("api", opt =>
-    {
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.PermitLimit = 100;
-        opt.QueueLimit = 0;
-    });
-});
-
-app.UseRateLimiter();
-
-// Apply to endpoints
-app.MapGet("/api/users", async (IUserService userService) =>
-{
-    var users = await userService.GetUsersAsync();
-    return Results.Ok(users);
-})
-.RequireRateLimiting("api");
 ```
 
 ## Swagger/OpenAPI
@@ -823,7 +799,6 @@ Before committing ASP.NET Core backend code:
 - [ ] Middleware pipeline in correct order
 - [ ] Background services properly inject scoped services via `IServiceProvider`
 - [ ] Health checks configured for database and external dependencies
-- [ ] Rate limiting applied to public endpoints
 - [ ] Swagger/OpenAPI documentation enabled in Development
 - [ ] Multi-stage Dockerfile optimized for production
 - [ ] No hardcoded connection strings (use `IConfiguration`)

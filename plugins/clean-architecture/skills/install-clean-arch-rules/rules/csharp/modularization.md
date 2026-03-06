@@ -460,7 +460,6 @@ Referenced in `angular.json` under the `serve` target:
 - Configure proper API documentation (Swagger)
 - Implement API versioning
 - Use appropriate authentication (JWT, OAuth, etc.)
-- Implement rate limiting if needed
 
 ---
 
