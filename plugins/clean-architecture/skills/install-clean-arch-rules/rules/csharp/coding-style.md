@@ -31,6 +31,42 @@ Prefer:
 - `readonly` collections (`IReadOnlyList<T>`, `IReadOnlyCollection<T>`)
 - Collection expressions for initialization (C# 12+)
 
+## Validation Strategy (CRITICAL)
+
+ALWAYS use **FluentValidation** for request/DTO validation. NEVER use Data Annotation attributes on records — they clutter positional syntax and violate separation of concerns.
+
+This keeps records clean and positional while making validation testable and composable:
+
+```csharp
+// CORRECT: Clean positional record + separate FluentValidation validator
+public record CreateUserRequest(string Name, string Email, int Age, string Phone);
+
+public class CreateUserRequestValidator : AbstractValidator<CreateUserRequest>
+{
+    public CreateUserRequestValidator()
+    {
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.Email).NotEmpty().EmailAddress().MaximumLength(255);
+        RuleFor(x => x.Age).InclusiveBetween(18, 120);
+        RuleFor(x => x.Phone).NotEmpty().Matches(@"^\+\d{10,15}$");
+    }
+}
+
+// WRONG: Data Annotations on positional record — hard to read, not testable
+public record CreateUserRequest(
+    [Required][MaxLength(100)] string Name,
+    [Required][EmailAddress][MaxLength(255)] string Email,
+    [Range(18, 120)] int Age,
+    [Required][RegularExpression(@"^\+\d{10,15}$")] string Phone
+);
+```
+
+Register FluentValidation in DI:
+```csharp
+// Program.cs
+builder.Services.AddValidatorsFromAssemblyContaining<CreateUserRequestValidator>();
+```
+
 ## Naming Conventions
 
 ALWAYS follow these C# naming standards:
@@ -324,7 +360,8 @@ Same as common/coding-style.md:
 
 Before marking C# work complete:
 - [ ] Nullable reference types enabled, no null-forgiving operators
-- [ ] `record` types used for immutable models
+- [ ] `record` types used for immutable models (positional syntax)
+- [ ] FluentValidation used for request validation (no Data Annotations on records)
 - [ ] LINQ used instead of manual loops
 - [ ] `async Task` methods (not `async void`)
 - [ ] `ILogger<T>` used (no `Console.WriteLine`)

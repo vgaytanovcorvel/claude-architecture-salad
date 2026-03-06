@@ -125,6 +125,70 @@ DI Registration:
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 ```
 
+## FluentValidation Pattern
+
+Use FluentValidation to keep record DTOs clean and positional. Validation lives in dedicated validator classes — never as Data Annotation attributes on records (see [csharp/coding-style.md](coding-style.md#validation-strategy-critical)).
+
+```csharp
+// Request records — clean positional syntax
+public record CreateUserRequest(string Name, string Email, int Age);
+public record UpdateUserRequest(string Name, string Email);
+
+// Validators — one per request type
+public class CreateUserRequestValidator : AbstractValidator<CreateUserRequest>
+{
+    public CreateUserRequestValidator()
+    {
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.Email).NotEmpty().EmailAddress().MaximumLength(255);
+        RuleFor(x => x.Age).InclusiveBetween(18, 120);
+    }
+}
+
+public class UpdateUserRequestValidator : AbstractValidator<UpdateUserRequest>
+{
+    public UpdateUserRequestValidator()
+    {
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.Email).NotEmpty().EmailAddress().MaximumLength(255);
+    }
+}
+```
+
+### Dependent/Async Validation Rules
+
+```csharp
+public class CreateUserRequestValidator : AbstractValidator<CreateUserRequest>
+{
+    public CreateUserRequestValidator(IUserRepository userRepository)
+    {
+        RuleFor(x => x.Email)
+            .NotEmpty()
+            .EmailAddress()
+            .MustAsync(async (email, cancellation) =>
+            {
+                var existing = await userRepository.UserGetByEmailAsync(email, cancellation);
+                return existing is null;
+            })
+            .WithMessage("Email already exists");
+    }
+}
+```
+
+### DI Registration
+
+```csharp
+// Program.cs — register all validators from the assembly
+builder.Services.AddValidatorsFromAssemblyContaining<CreateUserRequestValidator>();
+```
+
+For Minimal APIs, use the `ValidationFilter<T>` endpoint filter (see [csharp/backend.md](backend.md#request-validation-with-filters)). For controller-based APIs, `[ApiController]` triggers automatic model state validation — wire FluentValidation into the MVC pipeline:
+
+```csharp
+// Program.cs — FluentValidation for controllers
+builder.Services.AddFluentValidationAutoValidation();
+```
+
 ## API Response Format
 
 Use a consistent envelope for all API responses:
