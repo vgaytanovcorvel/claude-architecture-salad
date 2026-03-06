@@ -1,0 +1,18 @@
+{
+  "name": "claude-architecture-salad",
+  "owner": {
+    "name": "Vladimir Gaytanov"
+  },
+  "metadata": {
+    "description": "A marketplace of Claude Code plugins for enterprise architecture patterns",
+    "version": "1.0.0",
+    "pluginRoot": "./plugins"
+  },
+  "plugins": [
+    {
+      "name": "clean-architecture",
+      "source": "./plugins/clean-architecture",
+      "description": "Scaffolds .NET clean architecture projects, installs coding rules, and generates per-module CLAUDE.md files"
+    }
+  ]
+}
