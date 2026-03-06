@@ -10,7 +10,7 @@ paths: ["**/*.cs", "**/*.csx"]
 
 Encapsulate data access behind a consistent interface. Repository interfaces operate on **domain models** (persistence-ignorant classes defined in Abstractions), NOT on EF Core entity classes.
 
-**Naming Convention**: Methods MUST start with entity type for grouping (e.g., `UserGetByIdAsync`, `UserAddAsync`).
+**Naming Convention** (Repositories only — does NOT apply to Services): Methods MUST start with entity type for grouping (e.g., `UserGetByIdAsync`, `UserAddAsync`). Service interfaces use natural application-level naming (e.g., `GetUserByIdAsync`, `CreateUserAsync`).
 
 **Immutability**: Repository methods MUST NOT modify passed-in domain models - always return new instances.
 

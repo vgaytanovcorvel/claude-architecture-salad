@@ -85,7 +85,7 @@ When implementing new functionality:
 
 Encapsulate data access behind a consistent interface:
 
-**Naming Convention**:
+**Naming Convention** (Repositories only — does NOT apply to Services):
 Method names MUST start with entity type to enable grouping by entity:
 - `{Entity}FindAll()` or `{Entity}GetAllAsync()` - Retrieve all entities
 - `{Entity}FindById(id)` or `{Entity}GetByIdAsync(id)` - Retrieve single entity

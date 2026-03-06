@@ -42,7 +42,7 @@ export function useDebounce<T>(value: T, delay: number): T {
 
 ## Repository Pattern
 
-**Naming Convention**: Methods MUST start with entity type for grouping (e.g., `userFindById`, `userCreate`).
+**Naming Convention** (Repositories only — does NOT apply to Services): Methods MUST start with entity type for grouping (e.g., `userFindById`, `userCreate`). Service interfaces use natural application-level naming (e.g., `getUserById`, `createUser`).
 
 **Immutability**: Repository methods MUST NOT modify passed-in objects - always return new instances.
 
