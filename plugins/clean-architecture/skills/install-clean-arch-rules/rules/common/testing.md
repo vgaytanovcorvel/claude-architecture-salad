@@ -57,6 +57,38 @@ EVERY test MUST follow the Arrange/Act/Assert pattern with clearly marked commen
 <verify results and mock interactions>
 ```
 
+## Unit Test Philosophy: One Method Deep
+
+Unit tests exercise **exactly one method** of the system under test (SUT). The test must not execute logic beyond the single method being tested:
+
+- **Interface dependencies** (injected via constructor): Always mock them. The test controls their return values and verifies their invocations.
+- **Internal method calls** (other methods on the same SUT class): Make them `virtual` and mock them on the `Mock<SUT>`. This isolates the method under test from sibling method logic.
+- **The method under test itself**: Calls the real implementation through the mock (using `CallBase` for virtual methods, or directly for non-virtual methods).
+
+This means every unit test creates a `Mock<SUT>` — not an instance of the real class. The mock wraps the real class, allowing selective interception of internal method calls while executing the real logic of the method under test.
+
+### Why Mock the SUT?
+
+Mocking the SUT is **not** testing the mock — it is testing the real method logic while controlling the environment around it:
+
+1. Constructor dependencies are mocked as usual (interface mocks injected)
+2. The method under test runs its **real code** (via `CallBase` or because it is non-virtual)
+3. Any other methods the SUT calls on itself are **intercepted by the mock**, returning controlled values
+
+This guarantees the test goes exactly one method deep and no further.
+
+### All Methods Must Be Virtual — No Static Methods
+
+**CRITICAL**: All public and internal methods on service classes MUST be `virtual`:
+- Non-virtual methods **cannot be intercepted** by the mock framework when called internally by the method under test — their real logic executes, violating the one-method-deep rule
+- Static methods **cannot be mocked at all** and break test isolation entirely
+
+**When you encounter a non-virtual or static method** on a service class, **flag it as a warning** and recommend changing it to a virtual instance method. Do not silently write tests that let non-virtual internal calls execute — this produces tests that go deeper than one method.
+
+Exceptions:
+- Private helper methods with trivial logic (e.g., string formatting) may remain non-virtual, but prefer extracting complex logic into virtual methods
+- Extension methods and pure static utility functions (no state, no I/O) are acceptable in dedicated static utility classes, not in service classes
+
 ## Mock Standards
 
 ### Strict Mocks - MANDATORY
@@ -73,7 +105,7 @@ Every mock setup call MUST be chained with verification for the expected number 
 ### VerifyAll() - MANDATORY
 
 Every test MUST call `VerifyAll()` on:
-1. The service/class mock itself (when mocking the SUT)
+1. The service/class mock itself (the `Mock<SUT>`)
 2. ALL dependency mocks that have setup calls
 
 This ensures every setup was actually invoked the expected number of times.

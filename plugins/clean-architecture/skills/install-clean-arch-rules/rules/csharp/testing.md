@@ -80,9 +80,10 @@ public void Setup()
 ```
 
 **Why mock the service under test?**
-- Allows mocking virtual methods of the class being tested
-- Enables testing one method deep (setup dependencies for all called methods)
-- Provides flexibility to mock internal method calls
+- Tests go **one method deep** — the method under test runs its real logic, but any other method it calls on the same class is intercepted and controlled by the mock
+- Interface dependencies (constructor-injected) are mocked as usual
+- Internal virtual method calls are mocked via `Mock<SUT>.Setup()`, preventing execution of sibling method logic
+- This is NOT testing the mock — the method under test executes real code via `CallBase` (virtual) or directly (non-virtual)
 
 ## Test Method Naming Convention
 
@@ -229,8 +230,51 @@ await claimServiceMock.Object.ProcessClaimAsync(claimId, cancellationToken);
 
 **Rules Summary**:
 - **Virtual method under test**: `.Setup().CallBase().Verifiable()`
-- **Non-virtual method under test**: NO setup needed
-- **Virtual method called by method under test**: `.Setup().ReturnsAsync().Verifiable()`
+- **Non-virtual method under test**: NO setup needed — real code executes directly
+- **Virtual method called by method under test**: `.Setup().ReturnsAsync().Verifiable()` — intercepted by mock, real code does NOT execute
+
+## Virtual-Only Service Methods — CRITICAL
+
+All public and internal methods on service/repository classes **MUST be `virtual`**:
+
+```csharp
+// CORRECT - all methods are virtual and mockable
+public class ClaimService
+{
+    public virtual async Task<ClaimDto> GetClaimAsync(int id, CancellationToken ct) { ... }
+    public virtual async Task<ClaimDto> CreateClaimAsync(CreateClaimRequest req, CancellationToken ct) { ... }
+    internal virtual bool ValidateTransition(string from, string to) { ... }
+}
+
+// WRONG - non-virtual methods cannot be intercepted by Mock<ClaimService>
+public class ClaimService
+{
+    public async Task<ClaimDto> GetClaimAsync(int id, CancellationToken ct) { ... }  // NOT mockable when called internally
+    public static bool IsValidStatus(string status) { ... }  // NEVER mockable
+}
+```
+
+### Why This Matters
+
+When `ProcessClaimAsync` internally calls `GetClaimAsync`:
+- If `GetClaimAsync` is **virtual**: `Mock<ClaimService>` intercepts the call, returns your setup value — test stays one method deep
+- If `GetClaimAsync` is **non-virtual**: The real `GetClaimAsync` executes, which then calls its own dependencies — test goes multiple methods deep, violating isolation
+
+### Static Methods — PROHIBITED on Service Classes
+
+Static methods on service classes **cannot be mocked** and break test isolation. When encountered:
+
+1. **Flag as a warning**: "Method `X` is static and cannot be mocked in unit tests"
+2. **Recommend**: Convert to a `virtual` instance method
+3. **Exception**: Pure utility functions (no state, no I/O) in dedicated static utility classes (e.g., `StringHelpers`, `DateFormatUtils`) are acceptable
+
+### Non-Virtual Method Warning
+
+When generating or reviewing tests, if a non-virtual method on the SUT is called by the method under test:
+
+1. **Flag as a warning**: "Method `X` is non-virtual — it will execute real logic when called by the method under test, breaking one-method-deep isolation"
+2. **Recommend**: Add the `virtual` keyword to the method
+3. **Do not silently write tests** that allow non-virtual internal calls to execute
 
 ## Assert Section Standards
 
@@ -567,6 +611,8 @@ Before submitting unit tests:
 - [ ] `[TestInitialize]` Setup method creates service mock with factory constructor syntax
 - [ ] `FakeTimeProvider` used for testable time
 - [ ] Test methods follow `MethodName_ShouldResult_WhenCondition` naming convention
+- [ ] All public/internal methods on SUT are `virtual` (no non-virtual, no static on service classes)
+- [ ] Non-virtual or static methods flagged as warnings if encountered
 - [ ] Virtual methods tested with `.CallBase()` when under test
 - [ ] All Setup calls chained with `.Verifiable(Times.X)`
 - [ ] Every test calls `.VerifyAll()` on all mocks
