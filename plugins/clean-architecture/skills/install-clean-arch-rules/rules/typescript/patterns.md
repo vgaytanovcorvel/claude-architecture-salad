@@ -42,7 +42,9 @@ export function useDebounce<T>(value: T, delay: number): T {
 
 ## Repository Pattern
 
-**Naming Convention** (Repositories only — does NOT apply to Services): Methods MUST start with entity type for grouping (e.g., `userFindById`, `userCreate`). Service interfaces use natural application-level naming (e.g., `getUserById`, `createUser`).
+**Naming Convention** (Repositories only — does NOT apply to Services): Methods MUST start with entity type for grouping (e.g., `userSingleById`, `userCreate`). Service interfaces use natural application-level naming (e.g., `getUserById`, `createUser`).
+
+**Single vs SingleOrDefault**: `Single` methods throw `NotFoundException` when the entity is not found. `SingleOrDefault` methods return `null`. Use `Single` when absence is exceptional; use `SingleOrDefault` when absence is a valid outcome.
 
 **Immutability**: Repository methods MUST NOT modify passed-in objects - always return new instances.
 
@@ -50,7 +52,6 @@ export function useDebounce<T>(value: T, delay: number): T {
 // Generic repository interface (for cross-cutting operations)
 interface Repository<T> {
   findAll(filters?: Filters): Promise<readonly T[]>
-  findById(id: string): Promise<T | null>
   create(data: CreateDto): Promise<T>
   update(id: string, data: UpdateDto): Promise<T>
   delete(id: string): Promise<void>
@@ -58,8 +59,12 @@ interface Repository<T> {
 
 // Entity-specific repository with entity-first naming
 // Method names start with entity type for IDE autocomplete grouping
+// Single throws NotFoundException; SingleOrDefault returns null
 interface UserRepository extends Repository<User> {
-  userFindByEmail(email: string): Promise<User | null>
+  userSingleById(id: string): Promise<User>
+  userSingleOrDefaultById(id: string): Promise<User | null>
+  userSingleByEmail(email: string): Promise<User>
+  userSingleOrDefaultByEmail(email: string): Promise<User | null>
   userFindActive(): Promise<readonly User[]>
   userCreate(data: CreateUserDto): Promise<User>
   userUpdate(id: string, data: UpdateUserDto): Promise<User>
@@ -74,11 +79,25 @@ class PrismaUserRepository implements UserRepository {
     return await this.prisma.user.findMany({ where: filters })
   }
 
-  async findById(id: string): Promise<User | null> {
+  // Single — throws NotFoundException when not found
+  async userSingleById(id: string): Promise<User> {
+    const user = await this.userSingleOrDefaultById(id)
+    if (!user) throw new NotFoundException(`User not found (UserId: ${id}).`)
+    return user
+  }
+
+  async userSingleByEmail(email: string): Promise<User> {
+    const user = await this.userSingleOrDefaultByEmail(email)
+    if (!user) throw new NotFoundException(`User not found (Email: ${email}).`)
+    return user
+  }
+
+  // SingleOrDefault — returns null when not found
+  async userSingleOrDefaultById(id: string): Promise<User | null> {
     return await this.prisma.user.findUnique({ where: { id } })
   }
 
-  async userFindByEmail(email: string): Promise<User | null> {
+  async userSingleOrDefaultByEmail(email: string): Promise<User | null> {
     return await this.prisma.user.findUnique({ where: { email } })
   }
 
@@ -112,5 +131,5 @@ class PrismaUserRepository implements UserRepository {
 
 **Benefits of entity-first naming**:
 - Methods grouped by entity in IDE autocomplete
-- Easy to discover all User-related methods: `user...` shows all options
+- Easy to discover all User-related methods: `user...` shows all options (e.g., `userSingle...`, `userCreate`, `userUpdate`)
 - Clear separation between different entity operations

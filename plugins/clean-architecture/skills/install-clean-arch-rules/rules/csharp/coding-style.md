@@ -175,7 +175,7 @@ public string? FindUserEmail(int userId)
 public string GetUserEmail(int userId)
 {
     var user = _dbContext.Users.Find(userId) 
-        ?? throw new NotFoundException($"User {userId} not found");
+        ?? throw new NotFoundException($"User not found (UserId: {userId}).");
     return user.Email;
 }
 
@@ -237,7 +237,7 @@ public async Task<UserDto> GetUserAsync(int userId, CancellationToken cancellati
         .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
     
     return user is null 
-        ? throw new NotFoundException($"User {userId} not found")
+        ? throw new NotFoundException($"User not found (UserId: {userId}).")
         : MapToDto(user);
 }
 
@@ -376,7 +376,7 @@ public class UserService(
         if (user is null)
         {
             logger.LogWarning("User not found (UserId: {UserId}).", userId);
-            throw new NotFoundException($"User {userId} not found");
+            throw new NotFoundException($"User not found (UserId: {userId}).");
         }
 
         return MapToDto(user);

@@ -88,14 +88,19 @@ Encapsulate data access behind a consistent interface:
 **Naming Convention** (Repositories only — does NOT apply to Services):
 Method names MUST start with entity type to enable grouping by entity:
 - `{Entity}FindAll()` or `{Entity}GetAllAsync()` - Retrieve all entities
-- `{Entity}FindById(id)` or `{Entity}GetByIdAsync(id)` - Retrieve single entity
+- `{Entity}SingleById(id)` or `{Entity}SingleByIdAsync(id)` - Retrieve single entity; **throws NotFoundException** if not found
+- `{Entity}SingleOrDefaultById(id)` or `{Entity}SingleOrDefaultByIdAsync(id)` - Retrieve single entity; **returns null** if not found
 - `{Entity}Create(data)` or `{Entity}AddAsync(data)` - Create new entity
 - `{Entity}Update(id, data)` or `{Entity}UpdateAsync(id, data)` - Update existing entity
 - `{Entity}Delete(id)` or `{Entity}DeleteAsync(id)` - Delete entity
 
+**Single vs SingleOrDefault (CRITICAL)**:
+- **Single** methods throw `NotFoundException` when the entity does not exist — use when the caller expects the entity to be present (e.g., update, delete, or downstream logic that requires it)
+- **SingleOrDefault** methods return a falsey value (null) when the entity does not exist — use when absence is a valid outcome (e.g., lookup before create, conditional logic)
+
 **Examples**:
-- `UserFindAll()`, `UserFindById(123)`, `UserCreate(userData)`
-- `OrderFindAll()`, `OrderFindById(456)`, `OrderUpdate(456, orderData)`
+- `UserFindAll()`, `UserSingleById(123)`, `UserCreate(userData)`
+- `OrderFindAll()`, `OrderSingleOrDefaultById(456)`, `OrderUpdate(456, orderData)`
 
 **Domain vs Entity Separation (CRITICAL)**:
 - Repository interfaces operate on **domain model classes** (defined in Abstractions), NOT on ORM entity classes
@@ -107,6 +112,8 @@ Method names MUST start with entity type to enable grouping by entity:
 - Read methods return **new domain model instances** mapped from persistence — callers never receive tracked ORM objects
 - Write methods accept domain models, map them to ORM entities internally, perform persistence, and return **new domain model instances** reflecting the saved state
 - The ORM's change-tracking, identity map, and mutation are confined to the repository implementation — they are invisible to callers
+- ✅ `user = UserSingleById(id)` — Throws NotFoundException if not found
+- ✅ `user = UserSingleOrDefaultById(id)` — Returns null if not found
 - ✅ `newUser = UserCreate(userData)` — Returns a new domain model mapped from the saved entity
 - ✅ `updatedUser = UserUpdate(id, changes)` — Returns a new domain model reflecting persisted changes
 - ❌ Returning tracked ORM entities to callers — FORBIDDEN

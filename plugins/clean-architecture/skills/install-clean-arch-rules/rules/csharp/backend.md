@@ -48,7 +48,7 @@ public class UsersController(
         var user = await userService.GetUserByIdAsync(id, cancellationToken);
 
         if (user is null)
-            return NotFound(ApiResponse<UserDto>.Fail($"User {id} not found", HttpStatusCode.NotFound));
+            return NotFound(ApiResponse<UserDto>.Fail($"User not found (UserId: {id}).", HttpStatusCode.NotFound));
 
         return Ok(ApiResponse<UserDto>.Ok(user));
     }
@@ -130,7 +130,7 @@ usersApi.MapGet("/{id}", async (int id, IUserService userService) =>
     var user = await userService.GetUserByIdAsync(id);
     
     return user is null
-        ? Results.NotFound(ApiResponse<UserDto>.Fail($"User {id} not found", HttpStatusCode.NotFound))
+        ? Results.NotFound(ApiResponse<UserDto>.Fail($"User not found (UserId: {id}).", HttpStatusCode.NotFound))
         : Results.Ok(ApiResponse<UserDto>.Ok(user));
 })
 .WithName("GetUserById")
@@ -354,7 +354,7 @@ public async Task<Order> CreateOrderWithInventoryUpdateAsync(CreateOrderRequest 
         
         // Update inventory
         var product = await _dbContext.Products.FindAsync(request.ProductId)
-            ?? throw new NotFoundException("Product not found");
+            ?? throw new NotFoundException($"Product not found (ProductId: {request.ProductId}).");
         
         product.Stock -= request.Quantity;
         await _dbContext.SaveChangesAsync();

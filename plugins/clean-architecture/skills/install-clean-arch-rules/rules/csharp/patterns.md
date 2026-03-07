@@ -10,7 +10,9 @@ paths: ["**/*.cs", "**/*.csx"]
 
 Encapsulate data access behind a consistent interface. Repository interfaces operate on **domain models** (persistence-ignorant classes defined in Abstractions), NOT on EF Core entity classes.
 
-**Naming Convention** (Repositories only — does NOT apply to Services): Methods MUST start with entity type for grouping (e.g., `UserGetByIdAsync`, `UserAddAsync`). Service interfaces use natural application-level naming (e.g., `GetUserByIdAsync`, `CreateUserAsync`).
+**Naming Convention** (Repositories only — does NOT apply to Services): Methods MUST start with entity type for grouping (e.g., `UserSingleByIdAsync`, `UserAddAsync`). Service interfaces use natural application-level naming (e.g., `GetUserByIdAsync`, `CreateUserAsync`).
+
+**Single vs SingleOrDefault**: `Single` methods throw `NotFoundException` when the entity is not found. `SingleOrDefault` methods return `null`. Use `Single` when absence is exceptional; use `SingleOrDefault` when absence is a valid outcome.
 
 **Domain vs Entity Separation (CRITICAL)**: ORM entity classes (with navigation properties, `[Table]` attributes, etc.) are defined in the Repository project as an implementation detail and MUST NOT leak outside it. Repository implementations map between domain models and ORM entities internally.
 
@@ -22,9 +24,15 @@ Encapsulate data access behind a consistent interface. Repository interfaces ope
 // Method names start with entity type for IDE grouping
 public interface IUserRepository
 {
-    Task<User?> UserGetByIdAsync(int id, CancellationToken cancellationToken);
+    // Single — throws NotFoundException when not found
+    Task<User> UserSingleByIdAsync(int id, CancellationToken cancellationToken);
+    Task<User> UserSingleByEmailAsync(string email, CancellationToken cancellationToken);
+
+    // SingleOrDefault — returns null when not found
+    Task<User?> UserSingleOrDefaultByIdAsync(int id, CancellationToken cancellationToken);
+    Task<User?> UserSingleOrDefaultByEmailAsync(string email, CancellationToken cancellationToken);
+
     Task<IReadOnlyList<User>> UserGetAllAsync(CancellationToken cancellationToken);
-    Task<User?> UserGetByEmailAsync(string email, CancellationToken cancellationToken);
     Task<IReadOnlyList<User>> UserGetActiveAsync(CancellationToken cancellationToken);
     Task<User> UserAddAsync(User user, CancellationToken cancellationToken);
     Task<User> UserUpdateAsync(User user, CancellationToken cancellationToken);
@@ -50,7 +58,21 @@ public class UserEntity
 // Repository implementation — maps between domain models and EF Core entities
 public class UserRepository(ApplicationDbContext dbContext) : IUserRepository
 {
-    public async Task<User?> UserGetByIdAsync(int id, CancellationToken cancellationToken)
+    // Single — throws NotFoundException when not found
+    public async Task<User> UserSingleByIdAsync(int id, CancellationToken cancellationToken)
+    {
+        return await UserSingleOrDefaultByIdAsync(id, cancellationToken)
+            ?? throw new NotFoundException($"User not found (UserId: {id}).");
+    }
+
+    public async Task<User> UserSingleByEmailAsync(string email, CancellationToken cancellationToken)
+    {
+        return await UserSingleOrDefaultByEmailAsync(email, cancellationToken)
+            ?? throw new NotFoundException($"User not found (Email: {email}).");
+    }
+
+    // SingleOrDefault — returns null when not found
+    public async Task<User?> UserSingleOrDefaultByIdAsync(int id, CancellationToken cancellationToken)
     {
         var entity = await dbContext.Users
             .AsNoTracking()
@@ -59,7 +81,7 @@ public class UserRepository(ApplicationDbContext dbContext) : IUserRepository
         return entity is null ? null : MapToDomain(entity);
     }
 
-    public async Task<User?> UserGetByEmailAsync(string email, CancellationToken cancellationToken)
+    public async Task<User?> UserSingleOrDefaultByEmailAsync(string email, CancellationToken cancellationToken)
     {
         var entity = await dbContext.Users
             .AsNoTracking()
@@ -174,7 +196,7 @@ public class CreateUserRequestValidator : AbstractValidator<CreateUserRequest>
             .EmailAddress()
             .MustAsync(async (email, cancellation) =>
             {
-                var existing = await userRepository.UserGetByEmailAsync(email, cancellation);
+                var existing = await userRepository.UserSingleOrDefaultByEmailAsync(email, cancellation);
                 return existing is null;
             })
             .WithMessage("Email already exists");
@@ -232,11 +254,11 @@ public async Task<ActionResult<ApiResponse<UserDto>>> GetUser(int id, Cancellati
 {
     try
     {
-        // Using entity-first method naming
-        var user = await userRepository.GetByIdAsync(id, cancellationToken);
+        // Using entity-first method naming — SingleOrDefault returns null when not found
+        var user = await userRepository.UserSingleOrDefaultByIdAsync(id, cancellationToken);
 
         if (user is null)
-            return NotFound(ApiResponse<UserDto>.Fail($"User {id} not found", HttpStatusCode.NotFound));
+            return NotFound(ApiResponse<UserDto>.Fail($"User not found (UserId: {id}).", HttpStatusCode.NotFound));
 
         var dto = mapper.Map<UserDto>(user);
         return Ok(ApiResponse<UserDto>.Ok(dto));
@@ -377,7 +399,7 @@ public class UserService(
     {
         logger.LogInformation("Fetching user (UserId: {UserId}).", id);
 
-        var user = await userRepository.GetByIdAsync(id, cancellationToken);
+        var user = await userRepository.UserSingleOrDefaultByIdAsync(id, cancellationToken);
         return user is null ? null : mapper.Map<UserDto>(user);
     }
 
@@ -385,24 +407,24 @@ public class UserService(
     {
         logger.LogInformation("Creating user (Email: {Email}).", request.Email);
 
-        // Business logic: Check for duplicate email
-        var existingUser = await userRepository.GetByEmailAsync(request.Email, cancellationToken);
+        // Business logic: Check for duplicate email — SingleOrDefault since absence is expected
+        var existingUser = await userRepository.UserSingleOrDefaultByEmailAsync(request.Email, cancellationToken);
         if (existingUser is not null)
             throw new DuplicateEmailException($"Email {request.Email} already exists");
 
         var user = mapper.Map<User>(request);
-        var created = await userRepository.AddAsync(user, cancellationToken);
+        var created = await userRepository.UserAddAsync(user, cancellationToken);
 
         return mapper.Map<UserDto>(created);
     }
 
     public virtual async Task<UserDto> UpdateUserAsync(int id, UpdateUserRequest request, CancellationToken cancellationToken)
     {
-        var user = await userRepository.GetByIdAsync(id, cancellationToken)
-            ?? throw new NotFoundException($"User {id} not found");
+        // Single — throws NotFoundException if user doesn't exist
+        var user = await userRepository.UserSingleByIdAsync(id, cancellationToken);
 
         mapper.Map(request, user);
-        await userRepository.UpdateAsync(user, cancellationToken);
+        await userRepository.UserUpdateAsync(user, cancellationToken);
 
         return mapper.Map<UserDto>(user);
     }
@@ -410,7 +432,7 @@ public class UserService(
     public virtual async Task DeleteUserAsync(int id, CancellationToken cancellationToken)
     {
         logger.LogInformation("Deleting user (UserId: {UserId}).", id);
-        await userRepository.DeleteAsync(id, cancellationToken);
+        await userRepository.UserDeleteAsync(id, cancellationToken);
     }
 }
 ```
@@ -487,12 +509,12 @@ public record Result<T>
 // Usage
 public async Task<Result<UserDto>> CreateUserAsync(CreateUserRequest request)
 {
-    var existingUser = await _userRepository.GetByEmailAsync(request.Email);
+    var existingUser = await _userRepository.UserSingleOrDefaultByEmailAsync(request.Email);
     if (existingUser is not null)
         return Result<UserDto>.Failure($"Email {request.Email} already exists");
-    
+
     var user = _mapper.Map<User>(request);
-    var created = await _userRepository.AddAsync(user);
+    var created = await _userRepository.UserAddAsync(user);
     var dto = _mapper.Map<UserDto>(created);
     
     return Result<UserDto>.Success(dto);
