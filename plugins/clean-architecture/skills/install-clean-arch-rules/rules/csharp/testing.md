@@ -233,47 +233,14 @@ await claimServiceMock.Object.ProcessClaimAsync(claimId, cancellationToken);
 - **Non-virtual method under test**: NO setup needed — real code executes directly
 - **Virtual method called by method under test**: `.Setup().ReturnsAsync().Verifiable()` — intercepted by mock, real code does NOT execute
 
-## Virtual-Only Service Methods — CRITICAL
+## Virtual Methods Prerequisite
 
-All public and internal methods on service/repository classes **MUST be `virtual`**:
+All public and internal methods on service/repository classes MUST be `virtual`. See [csharp/coding-style.md](coding-style.md#virtual-methods-on-service-classes--critical) for the full rule, rationale, and examples.
 
-```csharp
-// CORRECT - all methods are virtual and mockable
-public class ClaimService
-{
-    public virtual async Task<ClaimDto> GetClaimAsync(int id, CancellationToken ct) { ... }
-    public virtual async Task<ClaimDto> CreateClaimAsync(CreateClaimRequest req, CancellationToken ct) { ... }
-    internal virtual bool ValidateTransition(string from, string to) { ... }
-}
+When generating or reviewing tests, if a non-virtual or static method on the SUT is encountered:
 
-// WRONG - non-virtual methods cannot be intercepted by Mock<ClaimService>
-public class ClaimService
-{
-    public async Task<ClaimDto> GetClaimAsync(int id, CancellationToken ct) { ... }  // NOT mockable when called internally
-    public static bool IsValidStatus(string status) { ... }  // NEVER mockable
-}
-```
-
-### Why This Matters
-
-When `ProcessClaimAsync` internally calls `GetClaimAsync`:
-- If `GetClaimAsync` is **virtual**: `Mock<ClaimService>` intercepts the call, returns your setup value — test stays one method deep
-- If `GetClaimAsync` is **non-virtual**: The real `GetClaimAsync` executes, which then calls its own dependencies — test goes multiple methods deep, violating isolation
-
-### Static Methods — PROHIBITED on Service Classes
-
-Static methods on service classes **cannot be mocked** and break test isolation. When encountered:
-
-1. **Flag as a warning**: "Method `X` is static and cannot be mocked in unit tests"
-2. **Recommend**: Convert to a `virtual` instance method
-3. **Exception**: Pure utility functions (no state, no I/O) in dedicated static utility classes (e.g., `StringHelpers`, `DateFormatUtils`) are acceptable
-
-### Non-Virtual Method Warning
-
-When generating or reviewing tests, if a non-virtual method on the SUT is called by the method under test:
-
-1. **Flag as a warning**: "Method `X` is non-virtual — it will execute real logic when called by the method under test, breaking one-method-deep isolation"
-2. **Recommend**: Add the `virtual` keyword to the method
+1. **Flag as a warning** before writing any test code
+2. **Recommend** adding the `virtual` keyword (or converting static to virtual instance method)
 3. **Do not silently write tests** that allow non-virtual internal calls to execute
 
 ## Assert Section Standards

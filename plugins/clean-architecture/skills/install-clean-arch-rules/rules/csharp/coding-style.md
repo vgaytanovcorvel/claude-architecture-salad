@@ -225,6 +225,53 @@ ConfigureAwait guidance:
 - Library code: Use `ConfigureAwait(false)` to avoid capturing context
 - Application code (ASP.NET Core, console apps): No need for `ConfigureAwait`
 
+## Virtual Methods on Service Classes — CRITICAL
+
+All public and internal methods on service and repository classes **MUST be `virtual`**:
+
+```csharp
+// CORRECT - all methods are virtual
+public class ClaimService : IClaimService
+{
+    public virtual async Task<ClaimDto> GetClaimAsync(int id, CancellationToken ct) { ... }
+    public virtual async Task<ClaimDto> CreateClaimAsync(CreateClaimRequest req, CancellationToken ct) { ... }
+    internal virtual bool ValidateTransition(string from, string to) { ... }
+}
+
+// WRONG - non-virtual methods cannot be intercepted by mock frameworks
+public class ClaimService : IClaimService
+{
+    public async Task<ClaimDto> GetClaimAsync(int id, CancellationToken ct) { ... }
+    public static bool IsValidStatus(string status) { ... }
+}
+```
+
+### Why Virtual?
+
+Service classes contain methods that call other methods on the same class. For unit tests to isolate a single method, the mock framework must be able to intercept those internal calls. This is only possible when methods are `virtual`:
+
+- **Virtual method**: The mock framework can intercept the call and return a controlled value — the test stays one method deep
+- **Non-virtual method**: The real method executes, cascading into its own dependencies — the test goes multiple methods deep, breaking isolation
+
+Without `virtual`, you cannot write properly isolated unit tests for any method that calls sibling methods on the same class.
+
+### Static Methods — PROHIBITED on Service Classes
+
+Static methods on service classes **cannot be mocked** and break test isolation. When encountered:
+
+1. **Flag as a warning**: "Method `X` is static and cannot be mocked in unit tests"
+2. **Recommend**: Convert to a `virtual` instance method
+
+**Exception**: Pure utility functions (no state, no I/O) in dedicated static utility classes (e.g., `StringHelpers`, `DateFormatUtils`) are acceptable — these are not service classes.
+
+### Non-Virtual Method Warning
+
+When generating or reviewing service/repository code, if a public or internal method is not `virtual`:
+
+1. **Flag as a warning**: "Method `X` is non-virtual — it cannot be intercepted by mock frameworks, breaking unit test isolation"
+2. **Recommend**: Add the `virtual` keyword
+3. **Do not silently write** non-virtual methods on service classes
+
 ## File Organization
 
 ALWAYS use file-scoped namespaces and organize usings:
@@ -368,5 +415,6 @@ Before marking C# work complete:
 - [ ] File-scoped namespaces
 - [ ] Proper naming conventions (PascalCase, _camelCase)
 - [ ] Pattern matching used where appropriate
+- [ ] All public/internal methods on service/repository classes are `virtual` (no static methods on service classes)
 - [ ] No deep nesting (>4 levels)
 - [ ] Files focused (<800 lines)

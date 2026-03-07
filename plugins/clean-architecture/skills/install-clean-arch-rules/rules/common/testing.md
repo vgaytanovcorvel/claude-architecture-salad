@@ -79,15 +79,9 @@ This guarantees the test goes exactly one method deep and no further.
 
 ### All Methods Must Be Virtual — No Static Methods
 
-**CRITICAL**: All public and internal methods on service classes MUST be `virtual`:
-- Non-virtual methods **cannot be intercepted** by the mock framework when called internally by the method under test — their real logic executes, violating the one-method-deep rule
-- Static methods **cannot be mocked at all** and break test isolation entirely
+**CRITICAL**: All public and internal methods on service classes MUST be `virtual`. This is a **class design rule** — see language-specific coding style rules (e.g., [csharp/coding-style.md](../csharp/coding-style.md#virtual-methods-on-service-classes--critical)) for the full rule, rationale, and code examples.
 
-**When you encounter a non-virtual or static method** on a service class, **flag it as a warning** and recommend changing it to a virtual instance method. Do not silently write tests that let non-virtual internal calls execute — this produces tests that go deeper than one method.
-
-Exceptions:
-- Private helper methods with trivial logic (e.g., string formatting) may remain non-virtual, but prefer extracting complex logic into virtual methods
-- Extension methods and pure static utility functions (no state, no I/O) are acceptable in dedicated static utility classes, not in service classes
+The testing implication: non-virtual methods cannot be intercepted by mock frameworks, so internal calls execute real logic and violate the one-method-deep rule. When you encounter a non-virtual or static method on a service class, **flag it as a warning** and recommend changing it to a virtual instance method before writing tests.
 
 ## Mock Standards
 
