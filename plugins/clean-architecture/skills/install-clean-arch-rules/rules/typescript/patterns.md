@@ -44,35 +44,25 @@ export function useDebounce<T>(value: T, delay: number): T {
 **Immutability**: Repository methods MUST NOT modify passed-in objects - always return new instances.
 
 ```typescript
-// Generic repository interface (for cross-cutting operations)
-interface Repository<T> {
-  findAll(filters?: Filters): Promise<readonly T[]>
-  create(data: CreateDto): Promise<T>
-  update(id: string, data: UpdateDto): Promise<T>
-  delete(id: string): Promise<void>
-}
-
-// Entity-specific repository with entity-first naming
+// Standalone entity-specific repository (no generic Repository<T> base —
+// entity-first naming makes a shared base impractical and causes DRY collisions)
 // Method names start with entity type for IDE autocomplete grouping
 // Single throws NotFoundException; SingleOrDefault returns null
-interface UserRepository extends Repository<User> {
+interface UserRepository {
   userSingleById(id: string): Promise<User>
   userSingleOrDefaultById(id: string): Promise<User | null>
   userSingleByEmail(email: string): Promise<User>
   userSingleOrDefaultByEmail(email: string): Promise<User | null>
+  userFindAll(filters?: UserFilters): Promise<readonly User[]>
   userFindActive(): Promise<readonly User[]>
   userCreate(data: CreateUserDto): Promise<User>
   userUpdate(id: string, data: UpdateUserDto): Promise<User>
+  userDelete(id: string): Promise<void>
 }
 
 // Implementation example with Prisma
 class PrismaUserRepository implements UserRepository {
   constructor(private prisma: PrismaClient) {}
-
-  async findAll(filters?: Filters): Promise<readonly User[]> {
-    // Returns new array - no side effects
-    return await this.prisma.user.findMany({ where: filters })
-  }
 
   // Single — throws NotFoundException when not found
   async userSingleById(id: string): Promise<User> {
@@ -96,29 +86,23 @@ class PrismaUserRepository implements UserRepository {
     return await this.prisma.user.findUnique({ where: { email } })
   }
 
+  async userFindAll(filters?: UserFilters): Promise<readonly User[]> {
+    return await this.prisma.user.findMany({ where: filters })
+  }
+
   async userFindActive(): Promise<readonly User[]> {
     return await this.prisma.user.findMany({ where: { isActive: true } })
   }
 
-  async create(data: CreateUserDto): Promise<User> {
-    // Returns new entity - no side effects on input
+  async userCreate(data: CreateUserDto): Promise<User> {
     return await this.prisma.user.create({ data })
   }
 
-  async userCreate(data: CreateUserDto): Promise<User> {
-    return await this.create(data)
-  }
-
-  async update(id: string, data: UpdateUserDto): Promise<User> {
-    // Returns new entity - no side effects on input
+  async userUpdate(id: string, data: UpdateUserDto): Promise<User> {
     return await this.prisma.user.update({ where: { id }, data })
   }
 
-  async userUpdate(id: string, data: UpdateUserDto): Promise<User> {
-    return await this.update(id, data)
-  }
-
-  async delete(id: string): Promise<void> {
+  async userDelete(id: string): Promise<void> {
     await this.prisma.user.delete({ where: { id } })
   }
 }
