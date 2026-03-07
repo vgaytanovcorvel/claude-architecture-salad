@@ -293,41 +293,13 @@ public class AntiForgeryMiddleware(RequestDelegate next, IAntiforgery antiforger
 
 ## Input Validation
 
-ALWAYS validate all inputs at API boundaries:
+ALWAYS validate all inputs at API boundaries using **FluentValidation**. NEVER use Data Annotation attributes on records — they clutter positional syntax and violate separation of concerns (see [csharp/coding-style.md](../csharp/coding-style.md#validation-strategy-critical)).
 
 ```csharp
-// Using Data Annotations
-public record CreateUserRequest
-{
-    [Required(ErrorMessage = "Email is required")]
-    [EmailAddress(ErrorMessage = "Invalid email format")]
-    public string Email { get; init; } = string.Empty;
+// Clean positional record — no validation attributes
+public record CreateUserRequest(string Email, string Name, int Age);
 
-    [Required]
-    [StringLength(100, MinimumLength = 2, ErrorMessage = "Name must be 2-100 characters")]
-    public string Name { get; init; } = string.Empty;
-
-    [Range(18, 120, ErrorMessage = "Age must be between 18 and 120")]
-    public int Age { get; init; }
-}
-
-// Controller with automatic validation
-[ApiController]
-[Route("api/[controller]")]
-public class UsersController : ControllerBase
-{
-    [HttpPost]
-    public async Task<ActionResult<UserDto>> CreateUser(
-        [FromBody] CreateUserRequest request)  // ModelState automatically validated
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);  // Returns validation errors
-        
-        // Process valid request
-    }
-}
-
-// Using FluentValidation (recommended for complex validation)
+// FluentValidation validator — testable, composable, separated from the model
 public class CreateUserRequestValidator : AbstractValidator<CreateUserRequest>
 {
     public CreateUserRequestValidator()
@@ -345,18 +317,26 @@ public class CreateUserRequestValidator : AbstractValidator<CreateUserRequest>
     }
 }
 
-// Registration
+// Async/dependent validation (e.g., uniqueness checks)
+public class CreateUserRequestValidator : AbstractValidator<CreateUserRequest>
+{
+    public CreateUserRequestValidator(IUserRepository userRepository)
+    {
+        RuleFor(x => x.Email)
+            .NotEmpty()
+            .EmailAddress()
+            .MustAsync(async (email, cancellation) =>
+            {
+                var existing = await userRepository.UserSingleOrDefaultByEmailAsync(email, cancellation);
+                return existing is null;
+            })
+            .WithMessage("Email already exists");
+    }
+}
+
+// Registration — wire inside Add{Feature} extension method
 builder.Services.AddValidatorsFromAssemblyContaining<CreateUserRequestValidator>();
 builder.Services.AddFluentValidationAutoValidation();
-
-// Custom validation logic
-RuleFor(x => x.Email)
-    .MustAsync(async (email, cancellation) =>
-    {
-        var exists = await _userRepository.GetByEmailAsync(email);
-        return exists is null;
-    })
-    .WithMessage("Email already exists");
 ```
 
 ## Secure Password Hashing

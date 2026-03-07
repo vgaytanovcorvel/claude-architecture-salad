@@ -243,26 +243,19 @@ public record ApiResponse<T>
         new() { Success = false, Error = error, StatusCode = statusCode };
 }
 
-// Usage in controller
+// Usage in controller — no try/catch; exceptions bubble to global handler
+// (see csharp/backend.md Global Exception Handler)
 [HttpGet("{id}")]
 public async Task<ActionResult<ApiResponse<UserDto>>> GetUser(int id, CancellationToken cancellationToken)
 {
-    try
-    {
-        // Using entity-first method naming — SingleOrDefault returns null when not found
-        var user = await userRepository.UserSingleOrDefaultByIdAsync(id, cancellationToken);
+    // Using entity-first method naming — SingleOrDefault returns null when not found
+    var user = await userRepository.UserSingleOrDefaultByIdAsync(id, cancellationToken);
 
-        if (user is null)
-            return NotFound(ApiResponse<UserDto>.Fail($"User not found (UserId: {id}).", HttpStatusCode.NotFound));
+    if (user is null)
+        return NotFound(ApiResponse<UserDto>.Fail($"User not found (UserId: {id}).", HttpStatusCode.NotFound));
 
-        var dto = mapper.Map<UserDto>(user);
-        return Ok(ApiResponse<UserDto>.Ok(dto));
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "Error fetching user (UserId: {UserId}).", id);
-        return StatusCode(500, ApiResponse<UserDto>.Fail("Internal server error", HttpStatusCode.InternalServerError));
-    }
+    var dto = mapper.Map<UserDto>(user);
+    return Ok(ApiResponse<UserDto>.Ok(dto));
 }
 ```
 
