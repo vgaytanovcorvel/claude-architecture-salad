@@ -462,21 +462,21 @@ NEVER log sensitive information:
 
 ```csharp
 // CORRECT: Log only safe data
-_logger.LogInformation(
-    "User login attempt for {Email}", 
+logger.LogInformation(
+    "User login attempt (Email: {Email}).",
     email);  // Email may be acceptable depending on policy
 
-_logger.LogInformation(
-    "Processing payment for user {UserId}", 
+logger.LogInformation(
+    "Processing payment (UserId: {UserId}).",
     userId);  // Use IDs, not PII
 
 // WRONG: Logging sensitive data
-_logger.LogInformation(
-    "User login with password {Password}", 
+logger.LogInformation(
+    "User login with password {Password}",
     password);  // ❌ NEVER log passwords
 
-_logger.LogInformation(
-    "Processing credit card {CardNumber}", 
+logger.LogInformation(
+    "Processing credit card {CardNumber}",
     cardNumber);  // ❌ NEVER log card numbers
 
 // Redact sensitive data in exceptions
@@ -486,7 +486,7 @@ try
 }
 catch (Exception ex)
 {
-    _logger.LogError(ex, "Payment processing failed for user {UserId}", userId);
+    logger.LogError(ex, "Payment processing failed (UserId: {UserId}).", userId);
     // Don't include card number in log
 }
 ```

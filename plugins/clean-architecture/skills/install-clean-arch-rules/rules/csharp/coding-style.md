@@ -79,7 +79,7 @@ public class UserService(
 {
     public virtual async Task<UserDto?> GetUserByIdAsync(int id, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Fetching user {UserId}", id);
+        logger.LogInformation("Fetching user (UserId: {UserId}).", id);
         var user = await userRepository.GetByIdAsync(id, cancellationToken);
         return user is null ? null : MapToDto(user);
     }
@@ -250,7 +250,7 @@ private async void OnButtonClick(object sender, EventArgs e)
     }
     catch (Exception ex)
     {
-        _logger.LogError(ex, "Error processing data");
+        logger.LogError(ex, "Error processing data.");
     }
 }
 
@@ -369,13 +369,13 @@ public class UserService(
 {
     public async Task<UserDto> GetUserAsync(int userId)
     {
-        logger.LogInformation("Fetching user {UserId}", userId);
+        logger.LogInformation("Fetching user (UserId: {UserId}).", userId);
 
         var user = await dbContext.Users.FindAsync(userId);
 
         if (user is null)
         {
-            logger.LogWarning("User {UserId} not found", userId);
+            logger.LogWarning("User not found (UserId: {UserId}).", userId);
             throw new NotFoundException($"User {userId} not found");
         }
 
@@ -408,7 +408,7 @@ public decimal CalculateDiscount(Customer customer) => customer.Tier switch
 // CORRECT: Is patterns with type testing
 if (result is UserDto { IsActive: true } user)
 {
-    _logger.LogInformation("Active user: {UserName}", user.Name);
+    logger.LogInformation("Active user (UserName: {UserName}).", user.Name);
 }
 
 // CORRECT: Null checking patterns

@@ -80,6 +80,35 @@ Benefits:
 - Enables filtering and aggregation
 - Machine-readable for analytics
 
+### Message Template Design
+
+Design templates so the **action or event is immediately clear** without reading interpolated values. Push contextual/correlation values toward the end of the message. End log messages with a period -- they are finished sentences.
+
+**Why**: Rendered log text should be scannable and greppable. A stable prefix lets you search for patterns (`grep "User not found"`) without variable data breaking the match.
+
+**WRONG** -- variable data breaks the scannable pattern:
+```csharp
+_logger.LogWarning("User {UserId} was not found in tenant {TenantId}", userId, tenantId);
+```
+```typescript
+logger.warn(`User ${userId} was not found in tenant ${tenantId}`);
+```
+
+**CORRECT** -- action first, context appended, finished sentence:
+```csharp
+_logger.LogWarning("User not found (UserId: {UserId}, TenantId: {TenantId}).", userId, tenantId);
+```
+```typescript
+logger.warn({ userId, tenantId }, "User not found.");
+```
+
+**ALSO CORRECT** -- single identifying value that preserves a greppable prefix:
+```csharp
+_logger.LogWarning("Feature {FeatureName} unavailable, using fallback.", featureName);
+```
+
+**Guidance, not dogma**: If moving a value to the end creates awkward phrasing, prioritize readability. The goal is greppable, scannable messages -- not rigid syntax.
+
 ## Correlation IDs (Handled by Telemetry)
 
 Modern telemetry systems (Application Insights, OpenTelemetry) automatically inject and track correlation IDs across distributed systems. **DO NOT manually add correlation IDs to log messages** - they're already part of the telemetry context.
@@ -104,7 +133,7 @@ NEVER log:
 - Business-critical failure not represented by exception
 - Context needed beyond what's in exception details
 
-**Example** (rare): `LogError("Payment gateway returned success but order was not created", { orderId, gatewayResponse })`
+**Example** (rare): `LogError("Payment gateway returned success but order was not created.", { orderId, gatewayResponse })`
 
 ### WARN
 Recoverable issues where user action might be needed
@@ -112,7 +141,7 @@ Recoverable issues where user action might be needed
 - Configuration issues detected at runtime
 - Resource limits approaching
 
-**Example**: `LogWarning("Feature flag service unavailable, using cached flags", { lastUpdate })`
+**Example**: `LogWarning("Feature flag service unavailable, using cached flags.", { lastUpdate })`
 
 ### INFO
 **Use extremely sparingly.** Only for business-critical events not captured by telemetry:
@@ -120,12 +149,12 @@ Recoverable issues where user action might be needed
 - Compliance/audit events (financial transactions, data access)
 - Critical state transitions not visible in telemetry
 
-**Example**: `LogInformation("Refund approval required", { orderId, amount, reason })`
+**Example**: `LogInformation("Refund approval required.", { orderId, amount, reason })`
 
 ### DEBUG
 Development/troubleshooting only. Disabled in production.
 
-**Example**: `LogDebug("Price calculation breakdown", { basePrice, tax, discount, final })`
+**Example**: `LogDebug("Price calculation breakdown.", { basePrice, tax, discount, final })`
 
 ### TRACE
 **Do not use.** Telemetry tracing handles this better.
@@ -135,7 +164,7 @@ Development/troubleshooting only. Disabled in production.
 ### C#
 Use `ILogger<T>` only when necessary (see guidelines above):
 ```csharp
-_logger.LogWarning("Feature unavailable, using fallback", new { feature, fallback });
+_logger.LogWarning("Feature unavailable, using fallback.", new { feature, fallback });
 ```
 
 **DO NOT**:
@@ -147,7 +176,7 @@ _logger.LogInformation("Processing order {OrderId}", orderId);  // ❌ Redundant
 ### TypeScript
 Use structured logger (Winston, Pino) sparingly:
 ```typescript
-logger.warn({ feature, fallback }, "Feature unavailable, using fallback");
+logger.warn({ feature, fallback }, "Feature unavailable, using fallback.");
 ```
 
 ## Logging Best Practices

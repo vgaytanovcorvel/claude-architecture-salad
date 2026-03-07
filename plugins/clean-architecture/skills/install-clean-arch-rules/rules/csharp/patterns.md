@@ -233,17 +233,17 @@ public async Task<ActionResult<ApiResponse<UserDto>>> GetUser(int id, Cancellati
     try
     {
         // Using entity-first method naming
-        var user = await _userRepository.GetByIdAsync(id, cancellationToken);
+        var user = await userRepository.GetByIdAsync(id, cancellationToken);
 
         if (user is null)
             return NotFound(ApiResponse<UserDto>.Fail($"User {id} not found", HttpStatusCode.NotFound));
 
-        var dto = _mapper.Map<UserDto>(user);
+        var dto = mapper.Map<UserDto>(user);
         return Ok(ApiResponse<UserDto>.Ok(dto));
     }
     catch (Exception ex)
     {
-        _logger.LogError(ex, "Error fetching user {UserId}", id);
+        logger.LogError(ex, "Error fetching user (UserId: {UserId}).", id);
         return StatusCode(500, ApiResponse<UserDto>.Fail("Internal server error", HttpStatusCode.InternalServerError));
     }
 }
@@ -322,7 +322,7 @@ public class EmailService(
     public async Task SendEmailAsync(string to, string subject, string body, CancellationToken cancellationToken)
     {
         logger.LogInformation(
-            "Sending email to {To} via {SmtpServer}:{Port}",
+            "Sending email (To: {To}, SmtpServer: {SmtpServer}, Port: {Port}).",
             to,
             emailOptions.Value.SmtpServer,
             emailOptions.Value.Port);
@@ -375,7 +375,7 @@ public class UserService(
 {
     public virtual async Task<UserDto?> GetUserByIdAsync(int id, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Fetching user {UserId}", id);
+        logger.LogInformation("Fetching user (UserId: {UserId}).", id);
 
         var user = await userRepository.GetByIdAsync(id, cancellationToken);
         return user is null ? null : mapper.Map<UserDto>(user);
@@ -383,7 +383,7 @@ public class UserService(
 
     public virtual async Task<UserDto> CreateUserAsync(CreateUserRequest request, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Creating user with email {Email}", request.Email);
+        logger.LogInformation("Creating user (Email: {Email}).", request.Email);
 
         // Business logic: Check for duplicate email
         var existingUser = await userRepository.GetByEmailAsync(request.Email, cancellationToken);
@@ -409,7 +409,7 @@ public class UserService(
 
     public virtual async Task DeleteUserAsync(int id, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Deleting user {UserId}", id);
+        logger.LogInformation("Deleting user (UserId: {UserId}).", id);
         await userRepository.DeleteAsync(id, cancellationToken);
     }
 }

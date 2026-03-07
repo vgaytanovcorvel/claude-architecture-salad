@@ -421,7 +421,7 @@ public class RequestLoggingMiddleware(
         var stopwatch = Stopwatch.StartNew();
 
         logger.LogInformation(
-            "Request {Method} {Path} started",
+            "Request started (Method: {Method}, Path: {Path}).",
             context.Request.Method,
             context.Request.Path);
 
@@ -433,7 +433,7 @@ public class RequestLoggingMiddleware(
         {
             stopwatch.Stop();
             logger.LogInformation(
-                "Request {Method} {Path} completed in {ElapsedMs}ms with status {StatusCode}",
+                "Request completed (Method: {Method}, Path: {Path}, ElapsedMs: {ElapsedMs}, StatusCode: {StatusCode}).",
                 context.Request.Method,
                 context.Request.Path,
                 stopwatch.ElapsedMilliseconds,
@@ -469,7 +469,7 @@ app.UseExceptionHandler(errorApp =>
         var exception = exceptionHandlerFeature?.Error;
 
         var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
-        logger.LogError(exception, "Unhandled exception");
+        logger.LogError(exception, "Unhandled exception.");
 
         var statusCode = exception switch
         {
@@ -504,7 +504,7 @@ public class DataCleanupService(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation("Data cleanup service started");
+        logger.LogInformation("Data cleanup service started.");
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -520,12 +520,12 @@ public class DataCleanupService(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error in data cleanup service");
+                logger.LogError(ex, "Error in data cleanup service.");
                 await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);  // Retry after delay
             }
         }
 
-        logger.LogInformation("Data cleanup service stopped");
+        logger.LogInformation("Data cleanup service stopped.");
     }
 
     private async Task CleanupExpiredDataAsync(CancellationToken cancellationToken)
@@ -543,7 +543,7 @@ public class DataCleanupService(
         dbContext.TempData.RemoveRange(expiredRecords);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation("Cleaned up {Count} expired records", expiredRecords.Count);
+        logger.LogInformation("Expired records cleaned up (Count: {Count}).", expiredRecords.Count);
     }
 }
 

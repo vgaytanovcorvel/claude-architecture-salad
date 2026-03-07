@@ -62,7 +62,7 @@ PRIORITIZE GLOBAL TELEMETRY OVER LOCAL CATCH BLOCKS:
 - **No Silent Failures:** NEVER silently swallow errors. Handle at every level or propagate explicitly.
 - **Cross-Cutting Logging:** Rely on global middleware and telemetry (e.g., Azure Application Insights, OpenTelemetry) to capture request metadata and unhandled exceptions automatically.
 - **No "Log-Vomit":** Do not log success paths, entering/exiting methods, or obvious state changes. Log only failures or critical state transitions at the system boundary.
-- **Structured Logging:** Use message templates for searchable telemetry (e.g., `LogInformation("Order {OrderId} failed", id)`).
+- **Structured Logging:** Use message templates for searchable telemetry (e.g., `LogInformation("Order failed (OrderId: {OrderId}).", id)`).
 
 ### User-Friendly Error Messages
 **UI layer**: Show friendly, actionable messages
@@ -70,7 +70,7 @@ PRIORITIZE GLOBAL TELEMETRY OVER LOCAL CATCH BLOCKS:
 
 **Example**:
 - User sees: "Unable to process payment. Please try again."
-- Log contains: "Payment gateway timeout: OrderId=12345, GatewayResponse=504, CorrelationId=abc-123"
+- Log contains: "Payment gateway timeout (OrderId: 12345, GatewayResponse: 504, CorrelationId: abc-123)."
 
 ## Input Validation
 
