@@ -263,8 +263,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     }
 }
 
-// Registration in Program.cs
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+// Registration in Program.cs — use AddDbContextFactory for thread-safe repository access
+// Repositories create short-lived DbContext per operation via IDbContextFactory (see csharp/patterns.md)
+builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection"),
         sqlOptions =>
@@ -298,75 +299,77 @@ dotnet ef migrations script
 
 ### Query Performance Patterns
 
+All examples below create a short-lived DbContext from `IDbContextFactory` (see [csharp/patterns.md](patterns.md#repository-pattern)):
+
 ```csharp
 // CORRECT: AsNoTracking for read-only queries
-public async Task<IReadOnlyList<UserDto>> GetUsersAsync()
+public async Task<IReadOnlyList<UserDto>> GetUsersAsync(CancellationToken cancellationToken)
 {
-    return await _dbContext.Users
+    await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+    return await dbContext.Users
         .AsNoTracking()  // No change tracking overhead
         .Select(u => new UserDto(u.Id, u.Name, u.Email))
-        .ToListAsync();
+        .ToListAsync(cancellationToken);
 }
 
 // CORRECT: Eager loading to avoid N+1 queries
-public async Task<User?> GetUserWithOrdersAsync(int userId)
+public async Task<User?> GetUserWithOrdersAsync(int userId, CancellationToken cancellationToken)
 {
-    return await _dbContext.Users
+    await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+    return await dbContext.Users
         .Include(u => u.Orders)
             .ThenInclude(o => o.Items)
-        .FirstOrDefaultAsync(u => u.Id == userId);
+        .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 }
 
 // CORRECT: Projection to select only needed columns
-public async Task<IReadOnlyList<UserSummaryDto>> GetUserSummariesAsync()
+public async Task<IReadOnlyList<UserSummaryDto>> GetUserSummariesAsync(CancellationToken cancellationToken)
 {
-    return await _dbContext.Users
+    await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+    return await dbContext.Users
         .Select(u => new UserSummaryDto
         {
             Id = u.Id,
             Name = u.Name,
             OrderCount = u.Orders.Count
         })
-        .ToListAsync();
+        .ToListAsync(cancellationToken);
 }
 
 // WRONG: Loading all data then filtering in memory
 public async Task<IReadOnlyList<User>> GetActiveUsersWrong()
 {
-    var allUsers = await _dbContext.Users.ToListAsync();  // ❌ Loads all users
-    return allUsers.Where(u => u.IsActive).ToList();  // ❌ Filters in memory
+    await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+    var allUsers = await dbContext.Users.ToListAsync();  // Loads all users
+    return allUsers.Where(u => u.IsActive).ToList();  // Filters in memory
 }
 ```
 
 ### Transaction Handling
 
+When multiple repository operations must be atomic, wrap them in a `TransactionScope`. Each repository method creates its own DbContext, but `TransactionScope` enlists them in a single ambient transaction:
+
 ```csharp
-public async Task<Order> CreateOrderWithInventoryUpdateAsync(CreateOrderRequest request)
+public async Task<Order> CreateOrderWithInventoryUpdateAsync(
+    CreateOrderRequest request,
+    CancellationToken cancellationToken)
 {
-    using var transaction = await _dbContext.Database.BeginTransactionAsync();
-    
-    try
-    {
-        // Create order
-        var order = new Order { UserId = request.UserId, Total = request.Total };
-        _dbContext.Orders.Add(order);
-        await _dbContext.SaveChangesAsync();
-        
-        // Update inventory
-        var product = await _dbContext.Products.FindAsync(request.ProductId)
-            ?? throw new NotFoundException($"Product not found (ProductId: {request.ProductId}).");
-        
-        product.Stock -= request.Quantity;
-        await _dbContext.SaveChangesAsync();
-        
-        await transaction.CommitAsync();
-        return order;
-    }
-    catch
-    {
-        await transaction.RollbackAsync();
-        throw;
-    }
+    using var transactionScope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
+
+    var order = await _orderRepository.OrderAddAsync(
+        new Order { UserId = request.UserId, Total = request.Total },
+        cancellationToken);
+
+    await _productRepository.ProductDecrementStockAsync(
+        request.ProductId,
+        request.Quantity,
+        cancellationToken);
+
+    transactionScope.Complete();
+    return order;
 }
 ```
 
@@ -521,20 +524,14 @@ public class DataCleanupService(
 
     private async Task CleanupExpiredDataAsync(CancellationToken cancellationToken)
     {
-        // Create scope to resolve scoped services (DbContext)
+        // Create scope to resolve scoped services (repositories, services)
         using var scope = serviceProvider.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var tempDataRepository = scope.ServiceProvider.GetRequiredService<ITempDataRepository>();
 
         var cutoffDate = DateTime.UtcNow.AddDays(-30);
-        
-        var expiredRecords = await dbContext.TempData
-            .Where(t => t.CreatedAt < cutoffDate)
-            .ToListAsync(cancellationToken);
+        var deletedCount = await tempDataRepository.TempDataDeleteExpiredAsync(cutoffDate, cancellationToken);
 
-        dbContext.TempData.RemoveRange(expiredRecords);
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        logger.LogInformation("Expired records cleaned up (Count: {Count}).", expiredRecords.Count);
+        logger.LogInformation("Expired records cleaned up (Count: {Count}).", deletedCount);
     }
 }
 

@@ -16,6 +16,8 @@ Encapsulate data access behind a consistent interface. Repository interfaces ope
 
 **Domain vs Entity Separation (CRITICAL)**: ORM entity classes (with navigation properties, `[Table]` attributes, etc.) are defined in the Repository project as an implementation detail and MUST NOT leak outside it. Repository implementations map between domain models and ORM entities internally.
 
+**Thread Safety (CRITICAL)**: Repositories accept `IDbContextFactory<TContext>` (not `TContext` directly) and create a short-lived `await using` DbContext in every method. This ensures each operation gets its own DbContext, making repositories safe to use from concurrent scopes, background services, and parallel calls. Never store a DbContext as a field.
+
 **Repository Contract**: Read methods use `AsNoTracking()` and return new domain model instances. Write methods accept domain models, map to EF Core entities, persist via change tracking internally, and return new domain model instances reflecting the saved state. EF Core's change tracking and mutation are confined to the repository implementation — callers only ever see plain domain objects.
 
 ```csharp
@@ -55,8 +57,9 @@ public class UserEntity
     public ICollection<TodoItemEntity> Todos { get; set; } = [];  // Navigation property — ORM only
 }
 
-// Repository implementation — maps between domain models and EF Core entities
-public class UserRepository(ApplicationDbContext dbContext) : IUserRepository
+// Repository implementation — uses IDbContextFactory for thread safety
+// Each method creates its own short-lived DbContext via await using
+public class UserRepository(IDbContextFactory<ApplicationDbContext> dbContextFactory) : IUserRepository
 {
     // Single — throws NotFoundException when not found
     public async Task<User> UserSingleByIdAsync(int id, CancellationToken cancellationToken)
@@ -74,6 +77,8 @@ public class UserRepository(ApplicationDbContext dbContext) : IUserRepository
     // SingleOrDefault — returns null when not found
     public async Task<User?> UserSingleOrDefaultByIdAsync(int id, CancellationToken cancellationToken)
     {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
         var entity = await dbContext.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
@@ -83,6 +88,8 @@ public class UserRepository(ApplicationDbContext dbContext) : IUserRepository
 
     public async Task<User?> UserSingleOrDefaultByEmailAsync(string email, CancellationToken cancellationToken)
     {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
         var entity = await dbContext.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
@@ -92,6 +99,8 @@ public class UserRepository(ApplicationDbContext dbContext) : IUserRepository
 
     public async Task<User> UserAddAsync(User user, CancellationToken cancellationToken)
     {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
         var entity = MapToEntity(user);
         var entry = await dbContext.Users.AddAsync(entity, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -100,13 +109,11 @@ public class UserRepository(ApplicationDbContext dbContext) : IUserRepository
 
     public async Task<User> UserUpdateAsync(User user, CancellationToken cancellationToken)
     {
-        // Map domain model to a new EF entity, attach, and mark modified
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
         var entity = MapToEntity(user);
         dbContext.Users.Update(entity);
         await dbContext.SaveChangesAsync(cancellationToken);
-
-        // Detach so tracked state doesn't leak; return a fresh domain model
-        dbContext.Entry(entity).State = EntityState.Detached;
         return MapToDomain(entity);
     }
 
@@ -149,6 +156,11 @@ public class UserRepository(ApplicationDbContext dbContext) : IUserRepository
 DI Registration — wire inside the assembly's `Add{Feature}` extension method (see [Extension Method Patterns](#extension-method-patterns-for-service-registration)):
 ```csharp
 // TodoApp.Repository/Infrastructure/PersistenceServiceCollectionExtensions.cs
+// Use AddDbContextFactory (NOT AddDbContext) — repositories create their own DbContext per operation
+services.AddDbContextFactory<ApplicationDbContext>(options =>
+    options.UseSqlServer(
+        configuration.GetConnectionString("DefaultConnection")));
+
 services.AddScoped<IUserRepository, UserRepository>();
 ```
 
@@ -414,7 +426,8 @@ public static class PersistenceServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddDbContext<ApplicationDbContext>(options =>
+        // AddDbContextFactory — repositories create short-lived DbContext per operation for thread safety
+        services.AddDbContextFactory<ApplicationDbContext>(options =>
             options.UseSqlServer(
                 configuration.GetConnectionString("DefaultConnection")));
 
