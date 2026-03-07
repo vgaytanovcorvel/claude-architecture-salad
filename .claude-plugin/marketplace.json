@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "A marketplace of Claude Code plugins for enterprise architecture patterns",
-    "version": "1.8.0",
+    "version": "1.9.0",
     "pluginRoot": "./plugins"
   },
   "plugins": [
