@@ -31,15 +31,29 @@ function updateUser(user, name) {
 
 ## Error Handling
 
-Use async/await with try-catch:
+Let exceptions bubble to the global handler (see [common/logging.md](../common/logging.md#no-trycatch-log-pattern)). Only catch locally when **transforming** to a domain-specific result:
 
 ```typescript
+// WRONG — catch-log-rethrow; telemetry already captures this
 try {
-  const result = await riskyOperation()
-  return result
+  return await riskyOperation()
 } catch (error) {
-  console.error('Operation failed:', error)
-  throw new Error('Detailed user-friendly message')
+  console.error('Operation failed:', error)  // ❌ console.error in production
+  throw new Error('Detailed message')        // ❌ redundant rethrow
+}
+
+// CORRECT — no try/catch; let global handler capture exceptions
+const result = await riskyOperation()
+return result
+
+// CORRECT — catch only to transform into a domain result
+try {
+  return Result.success(await riskyOperation())
+} catch (error) {
+  if (error instanceof NotFoundException) {
+    return Result.failure('Resource not found')
+  }
+  throw error  // re-throw unexpected errors to global handler
 }
 ```
 
