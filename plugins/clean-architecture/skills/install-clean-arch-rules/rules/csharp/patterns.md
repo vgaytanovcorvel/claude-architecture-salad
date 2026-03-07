@@ -254,8 +254,7 @@ public async Task<ActionResult<ApiResponse<UserDto>>> GetUser(int id, Cancellati
     if (user is null)
         return NotFound(ApiResponse<UserDto>.Fail($"User not found (UserId: {id}).", HttpStatusCode.NotFound));
 
-    var dto = mapper.Map<UserDto>(user);
-    return Ok(ApiResponse<UserDto>.Ok(dto));
+    return Ok(ApiResponse<UserDto>.Ok(MapToDto(user)));
 }
 ```
 
@@ -348,48 +347,42 @@ services.AddSingleton<IValidateOptions<DatabaseOptions>, DatabaseOptionsValidato
 Separate business logic from controllers and data access:
 
 ```csharp
-// Service interface
+// Service interface — operates on domain models, not DTOs
 public interface IUserService
 {
-    Task<UserDto?> GetUserByIdAsync(int id, CancellationToken cancellationToken);
-    Task<UserDto> CreateUserAsync(CreateUserRequest request, CancellationToken cancellationToken);
-    Task<UserDto> UpdateUserAsync(int id, UpdateUserRequest request, CancellationToken cancellationToken);
+    Task<User?> GetUserByIdAsync(int id, CancellationToken cancellationToken);
+    Task<User> CreateUserAsync(CreateUserRequest request, CancellationToken cancellationToken);
+    Task<User> UpdateUserAsync(int id, UpdateUserRequest request, CancellationToken cancellationToken);
     Task DeleteUserAsync(int id, CancellationToken cancellationToken);
 }
 
 // Service implementation with primary constructor
 public class UserService(
-    IUserRepository userRepository,
-    IMapper mapper) : IUserService
+    IUserRepository userRepository) : IUserService
 {
-    public virtual async Task<UserDto?> GetUserByIdAsync(int id, CancellationToken cancellationToken)
+    public virtual async Task<User?> GetUserByIdAsync(int id, CancellationToken cancellationToken)
     {
-        var user = await userRepository.UserSingleOrDefaultByIdAsync(id, cancellationToken);
-        return user is null ? null : mapper.Map<UserDto>(user);
+        return await userRepository.UserSingleOrDefaultByIdAsync(id, cancellationToken);
     }
 
-    public virtual async Task<UserDto> CreateUserAsync(CreateUserRequest request, CancellationToken cancellationToken)
+    public virtual async Task<User> CreateUserAsync(CreateUserRequest request, CancellationToken cancellationToken)
     {
         // Business logic: Check for duplicate email — SingleOrDefault since absence is expected
         var existingUser = await userRepository.UserSingleOrDefaultByEmailAsync(request.Email, cancellationToken);
         if (existingUser is not null)
             throw new DuplicateEmailException($"Email {request.Email} already exists");
 
-        var user = mapper.Map<User>(request);
-        var created = await userRepository.UserAddAsync(user, cancellationToken);
-
-        return mapper.Map<UserDto>(created);
+        var user = new User { Name = request.Name, Email = request.Email };
+        return await userRepository.UserAddAsync(user, cancellationToken);
     }
 
-    public virtual async Task<UserDto> UpdateUserAsync(int id, UpdateUserRequest request, CancellationToken cancellationToken)
+    public virtual async Task<User> UpdateUserAsync(int id, UpdateUserRequest request, CancellationToken cancellationToken)
     {
         // Single — throws NotFoundException if user doesn't exist
         var user = await userRepository.UserSingleByIdAsync(id, cancellationToken);
 
-        mapper.Map(request, user);
-        await userRepository.UserUpdateAsync(user, cancellationToken);
-
-        return mapper.Map<UserDto>(user);
+        var updated = user with { Name = request.Name, Email = request.Email };
+        return await userRepository.UserUpdateAsync(updated, cancellationToken);
     }
 
     public virtual async Task DeleteUserAsync(int id, CancellationToken cancellationToken)
@@ -440,7 +433,6 @@ public static class UserServiceCollectionExtensions
     public static IServiceCollection AddUserServices(this IServiceCollection services)
     {
         services.AddScoped<IUserService, UserService>();
-        services.AddAutoMapper(typeof(UserServiceCollectionExtensions).Assembly);
 
         return services;
     }
@@ -470,28 +462,27 @@ public record Result<T>
         new() { IsSuccess = false, Error = error };
 }
 
-// Usage
-public async Task<Result<UserDto>> CreateUserAsync(CreateUserRequest request)
+// Usage — service returns domain models, not DTOs
+public async Task<Result<User>> CreateUserAsync(CreateUserRequest request)
 {
     var existingUser = await _userRepository.UserSingleOrDefaultByEmailAsync(request.Email);
     if (existingUser is not null)
-        return Result<UserDto>.Failure($"Email {request.Email} already exists");
+        return Result<User>.Failure($"Email {request.Email} already exists");
 
-    var user = _mapper.Map<User>(request);
+    var user = new User { Name = request.Name, Email = request.Email };
     var created = await _userRepository.UserAddAsync(user);
-    var dto = _mapper.Map<UserDto>(created);
-    
-    return Result<UserDto>.Success(dto);
+
+    return Result<User>.Success(created);
 }
 
-// In controller
+// In controller — DTO mapping happens here (presentation concern)
 [HttpPost]
 public async Task<ActionResult<ApiResponse<UserDto>>> CreateUser(CreateUserRequest request)
 {
     var result = await _userService.CreateUserAsync(request);
 
     return result.IsSuccess
-        ? Ok(ApiResponse<UserDto>.Ok(result.Value!))
+        ? Ok(ApiResponse<UserDto>.Ok(MapToDto(result.Value!)))
         : BadRequest(ApiResponse<UserDto>.Fail(result.Error!, HttpStatusCode.BadRequest));
 }
 ```
