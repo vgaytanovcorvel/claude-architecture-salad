@@ -67,27 +67,73 @@ Register FluentValidation in DI:
 builder.Services.AddValidatorsFromAssemblyContaining<CreateUserRequestValidator>();
 ```
 
+## Primary Constructors (C# 12+) — PREFERRED
+
+ALWAYS use primary constructors for dependency injection. This eliminates boilerplate field declarations and constructor bodies:
+
+```csharp
+// CORRECT: Primary constructor (C# 12+)
+public class UserService(
+    IUserRepository userRepository,
+    ILogger<UserService> logger) : IUserService
+{
+    public virtual async Task<UserDto?> GetUserByIdAsync(int id, CancellationToken cancellationToken)
+    {
+        logger.LogInformation("Fetching user {UserId}", id);
+        var user = await userRepository.GetByIdAsync(id, cancellationToken);
+        return user is null ? null : MapToDto(user);
+    }
+}
+
+// WRONG: Traditional constructor with manual field assignment
+public class UserService : IUserService
+{
+    private readonly IUserRepository _userRepository;
+    private readonly ILogger<UserService> _logger;
+
+    public UserService(IUserRepository userRepository, ILogger<UserService> logger)
+    {
+        _userRepository = userRepository;
+        _logger = logger;
+    }
+}
+```
+
+**Rules**:
+- Use primary constructor parameters directly in method bodies — do NOT reassign them to private fields
+- Primary constructor parameters use **camelCase** (same as regular parameters)
+- For base class calls, chain with `: base(...)` after the parameter list
+- Works with classes, structs, and records
+
+```csharp
+// CORRECT: Inheriting with primary constructor
+public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+    : DbContext(options)
+{
+    public DbSet<User> Users => Set<User>();
+}
+```
+
 ## Naming Conventions
 
 ALWAYS follow these C# naming standards:
 
 - **PascalCase**: Classes, interfaces, methods, properties, public fields, namespaces
-- **camelCase**: Local variables, parameters, private methods
-- **_camelCase**: Private instance fields
+- **camelCase**: Local variables, parameters, primary constructor parameters
+- **_camelCase**: Private instance fields (rare — prefer primary constructors over manual fields)
 - **IPascalCase**: Interfaces (prefix with `I`)
 - **TPascalCase**: Type parameters (prefix with `T`)
 - **SCREAMING_CASE**: Constants only when representing fixed values like magic numbers
 
 ```csharp
 // CORRECT
-public class UserService
+public class UserService(
+    ILogger<UserService> logger,
+    DbContext dbContext)
 {
-    private readonly ILogger<UserService> _logger;
-    private readonly DbContext _dbContext;
-    
     public async Task<UserDto> GetUserAsync(int userId, CancellationToken cancellationToken)
     {
-        var user = await _dbContext.Users.FindAsync(new object[] { userId }, cancellationToken);
+        var user = await dbContext.Users.FindAsync(new object[] { userId }, cancellationToken);
         return MapToDto(user);
     }
 }
@@ -95,8 +141,8 @@ public class UserService
 // WRONG
 public class userService  // ❌ Should be PascalCase
 {
-    private ILogger logger;  // ❌ Missing _ prefix
-    
+    private ILogger logger;  // ❌ Missing _ prefix, prefer primary constructor
+
     public async Task<UserDto> get_user(int UserID)  // ❌ Should be PascalCase, camelCase param
     {
         // ...
@@ -316,28 +362,23 @@ global using Microsoft.Extensions.Logging;
 ALWAYS use `ILogger<T>` for logging. NEVER use `Console.WriteLine`:
 
 ```csharp
-// CORRECT: Structured logging
-public class UserService
+// CORRECT: Structured logging with primary constructor
+public class UserService(
+    DbContext dbContext,
+    ILogger<UserService> logger)
 {
-    private readonly ILogger<UserService> _logger;
-
-    public UserService(ILogger<UserService> logger)
-    {
-        _logger = logger;
-    }
-
     public async Task<UserDto> GetUserAsync(int userId)
     {
-        _logger.LogInformation("Fetching user {UserId}", userId);
-        
-        var user = await _dbContext.Users.FindAsync(userId);
-        
+        logger.LogInformation("Fetching user {UserId}", userId);
+
+        var user = await dbContext.Users.FindAsync(userId);
+
         if (user is null)
         {
-            _logger.LogWarning("User {UserId} not found", userId);
+            logger.LogWarning("User {UserId} not found", userId);
             throw new NotFoundException($"User {userId} not found");
         }
-        
+
         return MapToDto(user);
     }
 }
@@ -413,7 +454,8 @@ Before marking C# work complete:
 - [ ] `async Task` methods (not `async void`)
 - [ ] `ILogger<T>` used (no `Console.WriteLine`)
 - [ ] File-scoped namespaces
-- [ ] Proper naming conventions (PascalCase, _camelCase)
+- [ ] Primary constructors used for dependency injection (no manual field assignment)
+- [ ] Proper naming conventions (PascalCase, camelCase for primary constructor params)
 - [ ] Pattern matching used where appropriate
 - [ ] All public/internal methods on service/repository classes are `virtual` (no static methods on service classes)
 - [ ] No deep nesting (>4 levels)

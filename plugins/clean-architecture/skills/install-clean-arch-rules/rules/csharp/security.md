@@ -11,21 +11,14 @@ paths: ["**/*.cs", "**/*.csx"]
 NEVER hardcode secrets. ALWAYS use `IConfiguration` with appropriate providers:
 
 ```csharp
-// CORRECT: Using IConfiguration
-public class EmailService
+// CORRECT: Using IConfiguration with primary constructor
+public class EmailService(IConfiguration configuration)
 {
-    private readonly IConfiguration _configuration;
-
-    public EmailService(IConfiguration configuration)
-    {
-        _configuration = configuration;
-    }
-
     public async Task SendEmailAsync(string to, string subject, string body)
     {
-        var apiKey = _configuration["SendGrid:ApiKey"] 
+        var apiKey = configuration["SendGrid:ApiKey"]
             ?? throw new InvalidOperationException("SendGrid API key not configured");
-        
+
         // Use apiKey...
     }
 }
@@ -172,14 +165,9 @@ public class UsersController : ControllerBase
 
 ```csharp
 // Custom requirement
-public class MinimumAgeRequirement : IAuthorizationRequirement
+public class MinimumAgeRequirement(int minimumAge) : IAuthorizationRequirement
 {
-    public int MinimumAge { get; }
-
-    public MinimumAgeRequirement(int minimumAge)
-    {
-        MinimumAge = minimumAge;
-    }
+    public int MinimumAge { get; } = minimumAge;
 }
 
 // Handler
@@ -287,27 +275,18 @@ public async Task<ActionResult<UserDto>> CreateUser(CreateUserRequest request)
 }
 
 // For APIs, use custom middleware
-public class AntiForgeryMiddleware
+public class AntiForgeryMiddleware(RequestDelegate next, IAntiforgery antiforgery)
 {
-    private readonly RequestDelegate _next;
-    private readonly IAntiforgery _antiforgery;
-
-    public AntiForgeryMiddleware(RequestDelegate next, IAntiforgery antiforgery)
-    {
-        _next = next;
-        _antiforgery = antiforgery;
-    }
-
     public async Task InvokeAsync(HttpContext context)
     {
         if (HttpMethods.IsPost(context.Request.Method) ||
             HttpMethods.IsPut(context.Request.Method) ||
             HttpMethods.IsDelete(context.Request.Method))
         {
-            await _antiforgery.ValidateRequestAsync(context);
+            await antiforgery.ValidateRequestAsync(context);
         }
 
-        await _next(context);
+        await next(context);
     }
 }
 ```
@@ -386,27 +365,20 @@ NEVER store passwords in plain text. Use ASP.NET Core Identity or a proper hashi
 
 ```csharp
 // Using ASP.NET Core Identity (recommended)
-public class UserService
+public class UserService(UserManager<IdentityUser> userManager)
 {
-    private readonly UserManager<IdentityUser> _userManager;
-
-    public UserService(UserManager<IdentityUser> userManager)
-    {
-        _userManager = userManager;
-    }
-
     public async Task<IdentityResult> CreateUserAsync(string email, string password)
     {
         var user = new IdentityUser { UserName = email, Email = email };
-        return await _userManager.CreateAsync(user, password);  // Automatically hashed
+        return await userManager.CreateAsync(user, password);  // Automatically hashed
     }
 
     public async Task<bool> ValidatePasswordAsync(string email, string password)
     {
-        var user = await _userManager.FindByEmailAsync(email);
+        var user = await userManager.FindByEmailAsync(email);
         if (user is null) return false;
 
-        return await _userManager.CheckPasswordAsync(user, password);
+        return await userManager.CheckPasswordAsync(user, password);
     }
 }
 

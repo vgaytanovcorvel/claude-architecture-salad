@@ -23,17 +23,10 @@ Use the `[ApiController]` attribute to enable automatic model validation and bin
 ```csharp
 [ApiController]
 [Route("api/[controller]")]
-public class UsersController : ControllerBase
+public class UsersController(
+    IUserService userService,
+    ILogger<UsersController> logger) : ControllerBase
 {
-    private readonly IUserService _userService;
-    private readonly ILogger<UsersController> _logger;
-
-    public UsersController(IUserService userService, ILogger<UsersController> logger)
-    {
-        _userService = userService;
-        _logger = logger;
-    }
-
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<UserDto>>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<UserDto>>>> GetUsers(
@@ -41,7 +34,7 @@ public class UsersController : ControllerBase
         [FromQuery] int limit,
         CancellationToken cancellationToken)
     {
-        var users = await _userService.GetUsersAsync(page, limit, cancellationToken);
+        var users = await userService.GetUsersAsync(page, limit, cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<UserDto>>.Ok(users));
     }
 
@@ -52,11 +45,11 @@ public class UsersController : ControllerBase
         int id,
         CancellationToken cancellationToken)
     {
-        var user = await _userService.GetUserByIdAsync(id, cancellationToken);
-        
+        var user = await userService.GetUserByIdAsync(id, cancellationToken);
+
         if (user is null)
             return NotFound(ApiResponse<UserDto>.Fail($"User {id} not found", HttpStatusCode.NotFound));
-        
+
         return Ok(ApiResponse<UserDto>.Ok(user));
     }
 
@@ -67,8 +60,8 @@ public class UsersController : ControllerBase
         [FromBody] CreateUserRequest request,
         CancellationToken cancellationToken)
     {
-        var user = await _userService.CreateUserAsync(request, cancellationToken);
-        
+        var user = await userService.CreateUserAsync(request, cancellationToken);
+
         return CreatedAtAction(
             nameof(GetUser),
             new { id = user.Id },
@@ -83,7 +76,7 @@ public class UsersController : ControllerBase
         [FromBody] UpdateUserRequest request,
         CancellationToken cancellationToken)
     {
-        var user = await _userService.UpdateUserAsync(id, request, cancellationToken);
+        var user = await userService.UpdateUserAsync(id, request, cancellationToken);
         return Ok(ApiResponse<UserDto>.Ok(user));
     }
 
@@ -91,7 +84,7 @@ public class UsersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<ActionResult> DeleteUser(int id, CancellationToken cancellationToken)
     {
-        await _userService.DeleteUserAsync(id, cancellationToken);
+        await userService.DeleteUserAsync(id, cancellationToken);
         return NoContent();
     }
 }
@@ -180,24 +173,17 @@ app.Run();
 
 ```csharp
 // Custom validation filter
-public class ValidationFilter<T> : IEndpointFilter where T : class
+public class ValidationFilter<T>(IValidator<T> validator) : IEndpointFilter where T : class
 {
-    private readonly IValidator<T> _validator;
-
-    public ValidationFilter(IValidator<T> validator)
-    {
-        _validator = validator;
-    }
-
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
         var request = context.Arguments.OfType<T>().FirstOrDefault();
-        
+
         if (request is null)
             return Results.BadRequest("Invalid request");
-        
-        var validationResult = await _validator.ValidateAsync(request);
-        
+
+        var validationResult = await validator.ValidateAsync(request);
+
         if (!validationResult.IsValid)
         {
             return Results.BadRequest(new
@@ -205,7 +191,7 @@ public class ValidationFilter<T> : IEndpointFilter where T : class
                 Errors = validationResult.Errors.Select(e => new { e.PropertyName, e.ErrorMessage })
             });
         }
-        
+
         return await next(context);
     }
 }
@@ -248,13 +234,9 @@ usersApi.MapPost("/", async (CreateUserRequest request, IUserService userService
 ### DbContext Configuration
 
 ```csharp
-public class ApplicationDbContext : DbContext
+public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+    : DbContext(options)
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
-        : base(options)
-    {
-    }
-
     public DbSet<User> Users => Set<User>();
     public DbSet<Order> Orders => Set<Order>();
 
@@ -430,34 +412,27 @@ app.Run();
 ### Custom Middleware Pattern
 
 ```csharp
-public class RequestLoggingMiddleware
+public class RequestLoggingMiddleware(
+    RequestDelegate next,
+    ILogger<RequestLoggingMiddleware> logger)
 {
-    private readonly RequestDelegate _next;
-    private readonly ILogger<RequestLoggingMiddleware> _logger;
-
-    public RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggingMiddleware> logger)
-    {
-        _next = next;
-        _logger = logger;
-    }
-
     public async Task InvokeAsync(HttpContext context)
     {
         var stopwatch = Stopwatch.StartNew();
-        
-        _logger.LogInformation(
+
+        logger.LogInformation(
             "Request {Method} {Path} started",
             context.Request.Method,
             context.Request.Path);
-        
+
         try
         {
-            await _next(context);
+            await next(context);
         }
         finally
         {
             stopwatch.Stop();
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Request {Method} {Path} completed in {ElapsedMs}ms with status {StatusCode}",
                 context.Request.Method,
                 context.Request.Path,
@@ -521,23 +496,15 @@ app.UseExceptionHandler(errorApp =>
 ### IHostedService Pattern
 
 ```csharp
-public class DataCleanupService : BackgroundService
+public class DataCleanupService(
+    IServiceProvider serviceProvider,
+    ILogger<DataCleanupService> logger) : BackgroundService
 {
-    private readonly IServiceProvider _serviceProvider;
-    private readonly ILogger<DataCleanupService> _logger;
     private readonly TimeSpan _interval = TimeSpan.FromHours(24);
-
-    public DataCleanupService(
-        IServiceProvider serviceProvider,
-        ILogger<DataCleanupService> logger)
-    {
-        _serviceProvider = serviceProvider;
-        _logger = logger;
-    }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("Data cleanup service started");
+        logger.LogInformation("Data cleanup service started");
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -553,18 +520,18 @@ public class DataCleanupService : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in data cleanup service");
+                logger.LogError(ex, "Error in data cleanup service");
                 await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);  // Retry after delay
             }
         }
 
-        _logger.LogInformation("Data cleanup service stopped");
+        logger.LogInformation("Data cleanup service stopped");
     }
 
     private async Task CleanupExpiredDataAsync(CancellationToken cancellationToken)
     {
         // Create scope to resolve scoped services (DbContext)
-        using var scope = _serviceProvider.CreateScope();
+        using var scope = serviceProvider.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
         var cutoffDate = DateTime.UtcNow.AddDays(-30);
@@ -576,7 +543,7 @@ public class DataCleanupService : BackgroundService
         dbContext.TempData.RemoveRange(expiredRecords);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Cleaned up {Count} expired records", expiredRecords.Count);
+        logger.LogInformation("Cleaned up {Count} expired records", expiredRecords.Count);
     }
 }
 
@@ -594,22 +561,15 @@ builder.Services.AddHealthChecks()
     .AddCheck<CustomHealthCheck>("Custom Check");
 
 // Custom health check
-public class CustomHealthCheck : IHealthCheck
+public class CustomHealthCheck(IUserRepository userRepository) : IHealthCheck
 {
-    private readonly IUserRepository _userRepository;
-
-    public CustomHealthCheck(IUserRepository userRepository)
-    {
-        _userRepository = userRepository;
-    }
-
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,
         CancellationToken cancellationToken)
     {
         try
         {
-            var userCount = await _userRepository.GetCountAsync(cancellationToken);
+            var userCount = await userRepository.GetCountAsync(cancellationToken);
             
             return userCount > 0
                 ? HealthCheckResult.Healthy($"Database has {userCount} users")
@@ -642,7 +602,7 @@ builder.Services.AddApiVersioning(options =>
     options.ApiVersionReader = new UrlSegmentApiVersionReader();
 });
 
-// Controllers
+// Controllers (no primary constructor needed when there are no dependencies)
 [ApiController]
 [Route("api/v{version:apiVersion}/[controller]")]
 [ApiVersion("1.0")]

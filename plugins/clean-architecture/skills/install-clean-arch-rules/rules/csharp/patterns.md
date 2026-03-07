@@ -48,18 +48,11 @@ public class UserEntity
 }
 
 // Repository implementation — maps between domain models and EF Core entities
-public class UserRepository : IUserRepository
+public class UserRepository(ApplicationDbContext dbContext) : IUserRepository
 {
-    private readonly ApplicationDbContext _dbContext;
-
-    public UserRepository(ApplicationDbContext dbContext)
-    {
-        _dbContext = dbContext;
-    }
-
     public async Task<User?> UserGetByIdAsync(int id, CancellationToken cancellationToken)
     {
-        var entity = await _dbContext.Users
+        var entity = await dbContext.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
 
@@ -68,7 +61,7 @@ public class UserRepository : IUserRepository
 
     public async Task<User?> UserGetByEmailAsync(string email, CancellationToken cancellationToken)
     {
-        var entity = await _dbContext.Users
+        var entity = await dbContext.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
 
@@ -78,8 +71,8 @@ public class UserRepository : IUserRepository
     public async Task<User> UserAddAsync(User user, CancellationToken cancellationToken)
     {
         var entity = MapToEntity(user);
-        var entry = await _dbContext.Users.AddAsync(entity, cancellationToken);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        var entry = await dbContext.Users.AddAsync(entity, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
         return MapToDomain(entry.Entity);
     }
 
@@ -87,11 +80,11 @@ public class UserRepository : IUserRepository
     {
         // Map domain model to a new EF entity, attach, and mark modified
         var entity = MapToEntity(user);
-        _dbContext.Users.Update(entity);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        dbContext.Users.Update(entity);
+        await dbContext.SaveChangesAsync(cancellationToken);
 
         // Detach so tracked state doesn't leak; return a fresh domain model
-        _dbContext.Entry(entity).State = EntityState.Detached;
+        dbContext.Entry(entity).State = EntityState.Detached;
         return MapToDomain(entity);
     }
 
@@ -172,6 +165,8 @@ public class UpdateUserRequestValidator : AbstractValidator<UpdateUserRequest>
 ```csharp
 public class CreateUserRequestValidator : AbstractValidator<CreateUserRequest>
 {
+    // FluentValidation validators keep traditional constructors — rules must be defined
+    // in the constructor body, which primary constructors do not provide.
     public CreateUserRequestValidator(IUserRepository userRepository)
     {
         RuleFor(x => x.Email)
@@ -319,29 +314,20 @@ builder.Services.Configure<DatabaseOptions>(
 builder.Services.Configure<EmailOptions>(
     builder.Configuration.GetSection(EmailOptions.SectionName));
 
-// Usage in service
-public class EmailService
+// Usage in service with primary constructor
+public class EmailService(
+    IOptions<EmailOptions> emailOptions,
+    ILogger<EmailService> logger)
 {
-    private readonly EmailOptions _emailOptions;
-    private readonly ILogger<EmailService> _logger;
-
-    public EmailService(
-        IOptions<EmailOptions> emailOptions,
-        ILogger<EmailService> logger)
-    {
-        _emailOptions = emailOptions.Value;
-        _logger = logger;
-    }
-
     public async Task SendEmailAsync(string to, string subject, string body, CancellationToken cancellationToken)
     {
-        _logger.LogInformation(
-            "Sending email to {To} via {SmtpServer}:{Port}", 
-            to, 
-            _emailOptions.SmtpServer, 
-            _emailOptions.Port);
-        
-        // Send email using _emailOptions
+        logger.LogInformation(
+            "Sending email to {To} via {SmtpServer}:{Port}",
+            to,
+            emailOptions.Value.SmtpServer,
+            emailOptions.Value.Port);
+
+        // Send email using emailOptions.Value
     }
 }
 ```
@@ -381,61 +367,50 @@ public interface IUserService
     Task DeleteUserAsync(int id, CancellationToken cancellationToken);
 }
 
-// Service implementation
-public class UserService : IUserService
+// Service implementation with primary constructor
+public class UserService(
+    IUserRepository userRepository,
+    IMapper mapper,
+    ILogger<UserService> logger) : IUserService
 {
-    private readonly IUserRepository _userRepository;
-    private readonly IMapper _mapper;
-    private readonly ILogger<UserService> _logger;
-
-    public UserService(
-        IUserRepository userRepository,
-        IMapper mapper,
-        ILogger<UserService> logger)
+    public virtual async Task<UserDto?> GetUserByIdAsync(int id, CancellationToken cancellationToken)
     {
-        _userRepository = userRepository;
-        _mapper = mapper;
-        _logger = logger;
+        logger.LogInformation("Fetching user {UserId}", id);
+
+        var user = await userRepository.GetByIdAsync(id, cancellationToken);
+        return user is null ? null : mapper.Map<UserDto>(user);
     }
 
-    public async Task<UserDto?> GetUserByIdAsync(int id, CancellationToken cancellationToken)
+    public virtual async Task<UserDto> CreateUserAsync(CreateUserRequest request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching user {UserId}", id);
-        
-        var user = await _userRepository.GetByIdAsync(id, cancellationToken);
-        return user is null ? null : _mapper.Map<UserDto>(user);
-    }
+        logger.LogInformation("Creating user with email {Email}", request.Email);
 
-    public async Task<UserDto> CreateUserAsync(CreateUserRequest request, CancellationToken cancellationToken)
-    {
-        _logger.LogInformation("Creating user with email {Email}", request.Email);
-        
         // Business logic: Check for duplicate email
-        var existingUser = await _userRepository.GetByEmailAsync(request.Email, cancellationToken);
+        var existingUser = await userRepository.GetByEmailAsync(request.Email, cancellationToken);
         if (existingUser is not null)
             throw new DuplicateEmailException($"Email {request.Email} already exists");
-        
-        var user = _mapper.Map<User>(request);
-        var created = await _userRepository.AddAsync(user, cancellationToken);
-        
-        return _mapper.Map<UserDto>(created);
+
+        var user = mapper.Map<User>(request);
+        var created = await userRepository.AddAsync(user, cancellationToken);
+
+        return mapper.Map<UserDto>(created);
     }
 
-    public async Task<UserDto> UpdateUserAsync(int id, UpdateUserRequest request, CancellationToken cancellationToken)
+    public virtual async Task<UserDto> UpdateUserAsync(int id, UpdateUserRequest request, CancellationToken cancellationToken)
     {
-        var user = await _userRepository.GetByIdAsync(id, cancellationToken)
+        var user = await userRepository.GetByIdAsync(id, cancellationToken)
             ?? throw new NotFoundException($"User {id} not found");
-        
-        _mapper.Map(request, user);
-        await _userRepository.UpdateAsync(user, cancellationToken);
-        
-        return _mapper.Map<UserDto>(user);
+
+        mapper.Map(request, user);
+        await userRepository.UpdateAsync(user, cancellationToken);
+
+        return mapper.Map<UserDto>(user);
     }
 
-    public async Task DeleteUserAsync(int id, CancellationToken cancellationToken)
+    public virtual async Task DeleteUserAsync(int id, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Deleting user {UserId}", id);
-        await _userRepository.DeleteAsync(id, cancellationToken);
+        logger.LogInformation("Deleting user {UserId}", id);
+        await userRepository.DeleteAsync(id, cancellationToken);
     }
 }
 ```
@@ -547,16 +522,11 @@ public interface ISpecification<T>
     Expression<Func<T, object>>? OrderBy { get; }
 }
 
-public class BaseSpecification<T> : ISpecification<T>
+public class BaseSpecification<T>(Expression<Func<T, bool>> criteria) : ISpecification<T>
 {
-    public Expression<Func<T, bool>> Criteria { get; }
+    public Expression<Func<T, bool>> Criteria { get; } = criteria;
     public List<Expression<Func<T, object>>> Includes { get; } = new();
     public Expression<Func<T, object>>? OrderBy { get; private set; }
-
-    protected BaseSpecification(Expression<Func<T, bool>> criteria)
-    {
-        Criteria = criteria;
-    }
 
     protected void AddInclude(Expression<Func<T, object>> includeExpression)
     {
@@ -570,6 +540,8 @@ public class BaseSpecification<T> : ISpecification<T>
 }
 
 // Example specification
+// Note: Subclasses that need constructor body logic (e.g., calling AddInclude)
+// keep traditional constructors since primary constructors have no body.
 public class ActiveUsersSpecification : BaseSpecification<User>
 {
     public ActiveUsersSpecification() : base(u => u.IsActive)
