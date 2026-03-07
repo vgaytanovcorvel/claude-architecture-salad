@@ -79,6 +79,13 @@ When implementing new functionality:
 3. Clone best match as foundation
 4. Iterate within proven structure
 
+## Anemic Domain Model
+
+Domain classes are plain data containers (properties only). All business logic lives in the **Application/Service layer**.
+
+- ✅ Domain model holds data — services hold behavior
+- ❌ Do NOT put business methods on domain entities (no rich domain model)
+
 ## Design Patterns
 
 ### Repository Pattern
