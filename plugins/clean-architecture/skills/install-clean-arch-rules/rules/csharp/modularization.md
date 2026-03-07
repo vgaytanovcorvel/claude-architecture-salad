@@ -6,6 +6,34 @@ This document defines the standard assembly structure for C# solutions. Each ass
 
 **Note**: Assemblies should only be created if applicable to the project's requirements.
 
+## Internal Folder Organization
+
+Organize files within each assembly **by type** into dedicated folders. Each type category gets its own folder at the assembly root:
+
+| Folder | Contains |
+|---|---|
+| `Constants/` | Constant values and static configuration |
+| `Configurations/` | EF Core entity type configurations (`IEntityTypeConfiguration<T>`) |
+| `Contexts/` | DbContext classes |
+| `Controllers/` | MVC/API controllers |
+| `Entities/` | ORM entity classes (with navigation properties, attributes) |
+| `Enums/` | Enumerations |
+| `Exceptions/` | Custom exception types |
+| `Extensions/` | Extension methods and DI registration helpers |
+| `Filters/` | Action filters, result filters, exception filters |
+| `Interfaces/` | Service and repository interfaces (contracts) |
+| `Middleware/` | Custom middleware components |
+| `Migrations/` | EF Core database migrations |
+| `ModelBinders/` | Custom model binders |
+| `Models/` | DTOs, domain models, request/response types |
+| `Repositories/` | Repository implementations |
+| `Services/` | Service implementations |
+| `Utilities/` | Helper and utility classes |
+| `Validators/` | FluentValidation validators |
+| `ValueObjects/` | Value objects |
+
+Create only the folders applicable to each assembly. For example, `Enums/` and `Exceptions/` belong in Abstractions but not in Repository; `Entities/` and `Migrations/` belong in Repository but not in Implementation.
+
 ## Assembly Structure
 
 ### 1. [ProjectNamespace].Common
@@ -17,15 +45,6 @@ This document defines the standard assembly structure for C# solutions. Each ass
 - Common constants and enumerations
 - Shared utilities used by both client and server
 - Cross-cutting concerns applicable to both tiers
-
-**Folder Structure**:
-```
-[ProjectNamespace].Common/
-├── Constants/          ← Shared constant values
-├── Enums/              ← Shared enumerations
-├── Models/             ← Shared DTOs and data models
-└── Utilities/          ← Shared helper/utility classes
-```
 
 **Dependencies**: Minimal external dependencies
 
@@ -42,14 +61,6 @@ This document defines the standard assembly structure for C# solutions. Each ass
 - API client interfaces and implementations
 - Request/response models specific to API communication
 - Client-side proxy classes
-
-**Folder Structure**:
-```
-[ProjectNamespace].Client/
-├── Interfaces/         ← Client service interfaces
-├── Models/             ← Request/response models for API communication
-└── Services/           ← HTTP client and proxy implementations
-```
 
 **Dependencies**:
 - [ProjectNamespace].Common
@@ -72,17 +83,6 @@ This document defines the standard assembly structure for C# solutions. Each ass
 - Domain enumerations
 - Value objects
 
-**Folder Structure**:
-```
-[ProjectNamespace].Abstractions/
-├── Constants/          ← Domain constants
-├── Enums/              ← Domain enumerations
-├── Exceptions/         ← Custom exception types
-├── Interfaces/         ← Service and repository interfaces (contracts)
-├── Models/             ← Domain models (persistence-ignorant)
-└── ValueObjects/       ← Value objects
-```
-
 **Dependencies**: Minimal; should avoid heavy framework dependencies
 
 **Best Practices**:
@@ -104,13 +104,6 @@ This document defines the standard assembly structure for C# solutions. Each ass
 - Application services
 - Validation logic
 - Business rules enforcement
-
-**Folder Structure**:
-```
-[ProjectNamespace].Implementation/
-├── Services/           ← Service interface implementations
-└── Validators/         ← FluentValidation validators
-```
 
 **Dependencies**:
 - [ProjectNamespace].Abstractions
@@ -136,16 +129,6 @@ This document defines the standard assembly structure for C# solutions. Each ass
 - Database context classes
 - Data migrations
 - Query specifications
-
-**Folder Structure**:
-```
-[ProjectNamespace].Repository/
-├── Contexts/           ← DbContext classes
-├── Configurations/     ← EF Core entity type configurations (IEntityTypeConfiguration<T>)
-├── Entities/           ← ORM entity classes (with navigation properties, attributes)
-├── Migrations/         ← EF Core database migrations
-└── Repositories/       ← Repository interface implementations
-```
 
 **Dependencies**:
 - [ProjectNamespace].Abstractions
@@ -177,16 +160,6 @@ This document defines the standard assembly structure for C# solutions. Each ass
 - Model binders
 - Action filters and result filters
 - Web-specific dependency injection configuration
-
-**Folder Structure**:
-```
-[ProjectNamespace].Web.Core/
-├── Controllers/        ← MVC/API controllers
-├── Filters/            ← Action filters, result filters, exception filters
-├── Middleware/          ← Custom middleware components
-├── ModelBinders/       ← Custom model binders
-└── Extensions/         ← DI registration and pipeline extension methods
-```
 
 **Dependencies**:
 - [ProjectNamespace].Abstractions
