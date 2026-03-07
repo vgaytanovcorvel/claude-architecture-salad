@@ -146,10 +146,10 @@ public class UserRepository(ApplicationDbContext dbContext) : IUserRepository
 }
 ```
 
-DI Registration:
+DI Registration — wire inside the assembly's `Add{Feature}` extension method (see [Extension Method Patterns](#extension-method-patterns-for-service-registration)):
 ```csharp
-// Program.cs
-builder.Services.AddScoped<IUserRepository, UserRepository>();
+// TodoApp.Repository/Infrastructure/PersistenceServiceCollectionExtensions.cs
+services.AddScoped<IUserRepository, UserRepository>();
 ```
 
 ## FluentValidation Pattern
@@ -206,16 +206,18 @@ public class CreateUserRequestValidator : AbstractValidator<CreateUserRequest>
 
 ### DI Registration
 
+Wire inside the assembly's `Add{Feature}` extension method (see [Extension Method Patterns](#extension-method-patterns-for-service-registration)):
+
 ```csharp
-// Program.cs — register all validators from the assembly
-builder.Services.AddValidatorsFromAssemblyContaining<CreateUserRequestValidator>();
+// Inside Add{Feature} extension method
+services.AddValidatorsFromAssemblyContaining<CreateUserRequestValidator>();
 ```
 
 For Minimal APIs, use the `ValidationFilter<T>` endpoint filter (see [csharp/backend.md](backend.md#request-validation-with-filters)). For controller-based APIs, `[ApiController]` triggers automatic model state validation — wire FluentValidation into the MVC pipeline:
 
 ```csharp
-// Program.cs — FluentValidation for controllers
-builder.Services.AddFluentValidationAutoValidation();
+// Inside Add{Feature} extension method
+services.AddFluentValidationAutoValidation();
 ```
 
 ## API Response Format
@@ -329,12 +331,12 @@ public class EmailOptions
   }
 }
 
-// Registration in Program.cs
-builder.Services.Configure<DatabaseOptions>(
-    builder.Configuration.GetSection(DatabaseOptions.SectionName));
-    
-builder.Services.Configure<EmailOptions>(
-    builder.Configuration.GetSection(EmailOptions.SectionName));
+// Inside Add{Feature} extension method
+services.Configure<DatabaseOptions>(
+    configuration.GetSection(DatabaseOptions.SectionName));
+
+services.Configure<EmailOptions>(
+    configuration.GetSection(EmailOptions.SectionName));
 
 // Usage in service with primary constructor
 public class EmailService(
@@ -371,8 +373,8 @@ public class DatabaseOptionsValidator : IValidateOptions<DatabaseOptions>
     }
 }
 
-// Register validator
-builder.Services.AddSingleton<IValidateOptions<DatabaseOptions>, DatabaseOptionsValidator>();
+// Inside Add{Feature} extension method
+services.AddSingleton<IValidateOptions<DatabaseOptions>, DatabaseOptionsValidator>();
 ```
 
 ## Service Layer Pattern
@@ -439,53 +441,55 @@ public class UserService(
 
 ## Extension Method Patterns for Service Registration
 
-Create extension methods to organize service registration:
+Each assembly exposes its own DI wiring via an `IServiceCollection` extension method.
+
+**Conventions**:
+- **Namespace**: Always `Microsoft.Extensions.DependencyInjection` — this is the standard .NET convention so callers discover the method without extra `using` statements
+- **Method name**: `Add{Feature}(...)` — describes what capability the assembly adds (e.g., `AddPersistence`, `AddUserServices`, `AddWebCore`)
+- **File location**: `Infrastructure/{Feature}ServiceCollectionExtensions.cs` inside the assembly
+- **Class name**: `{Feature}ServiceCollectionExtensions`
 
 ```csharp
-// Infrastructure/DependencyInjection.cs
-public static class DependencyInjection
+// TodoApp.Repository/Infrastructure/PersistenceServiceCollectionExtensions.cs
+using Microsoft.EntityFrameworkCore;
+
+namespace Microsoft.Extensions.DependencyInjection;
+
+public static class PersistenceServiceCollectionExtensions
 {
-    public static IServiceCollection AddInfrastructure(
+    public static IServiceCollection AddPersistence(
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // Database
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseSqlServer(
                 configuration.GetConnectionString("DefaultConnection")));
-        
-        // Repositories
+
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IOrderRepository, OrderRepository>();
-        
+
         return services;
     }
 }
 
-// Application/DependencyInjection.cs
-public static class DependencyInjection
+// TodoApp.Implementation/Infrastructure/UserServiceCollectionExtensions.cs
+namespace Microsoft.Extensions.DependencyInjection;
+
+public static class UserServiceCollectionExtensions
 {
-    public static IServiceCollection AddApplication(this IServiceCollection services)
+    public static IServiceCollection AddUserServices(this IServiceCollection services)
     {
-        // Services
         services.AddScoped<IUserService, UserService>();
-        services.AddScoped<IOrderService, OrderService>();
-        
-        // AutoMapper
-        services.AddAutoMapper(Assembly.GetExecutingAssembly());
-        
-        // MediatR (if using CQRS)
-        services.AddMediatR(cfg => 
-            cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
-        
+        services.AddAutoMapper(typeof(UserServiceCollectionExtensions).Assembly);
+
         return services;
     }
 }
 
-// Program.cs
+// Program.cs — callers compose features without extra using statements
 builder.Services
-    .AddApplication()
-    .AddInfrastructure(builder.Configuration);
+    .AddUserServices()
+    .AddPersistence(builder.Configuration);
 ```
 
 ## Result Pattern (Alternative to Exceptions)
