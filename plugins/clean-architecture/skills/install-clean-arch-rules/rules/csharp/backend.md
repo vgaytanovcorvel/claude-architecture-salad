@@ -411,48 +411,39 @@ app.Run();
 
 ### Custom Middleware Pattern
 
+**Note**: Do NOT create request-logging middleware — telemetry (Application Insights, OpenTelemetry) captures request method, path, status code, and duration automatically (see [common/logging.md](../common/logging.md)). Use custom middleware only for cross-cutting concerns not covered by telemetry, such as tenant resolution:
+
 ```csharp
-public class RequestLoggingMiddleware(
-    RequestDelegate next,
-    ILogger<RequestLoggingMiddleware> logger)
+public class TenantResolutionMiddleware(RequestDelegate next)
 {
-    public async Task InvokeAsync(HttpContext context)
+    public async Task InvokeAsync(HttpContext context, ITenantProvider tenantProvider)
     {
-        var stopwatch = Stopwatch.StartNew();
+        var tenantId = context.Request.Headers["X-Tenant-Id"].FirstOrDefault();
 
-        logger.LogInformation(
-            "Request started (Method: {Method}, Path: {Path}).",
-            context.Request.Method,
-            context.Request.Path);
+        if (string.IsNullOrEmpty(tenantId))
+        {
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await context.Response.WriteAsJsonAsync(
+                ApiResponse<object>.Fail("X-Tenant-Id header is required.", HttpStatusCode.BadRequest));
+            return;
+        }
 
-        try
-        {
-            await next(context);
-        }
-        finally
-        {
-            stopwatch.Stop();
-            logger.LogInformation(
-                "Request completed (Method: {Method}, Path: {Path}, ElapsedMs: {ElapsedMs}, StatusCode: {StatusCode}).",
-                context.Request.Method,
-                context.Request.Path,
-                stopwatch.ElapsedMilliseconds,
-                context.Response.StatusCode);
-        }
+        tenantProvider.SetTenant(tenantId);
+        await next(context);
     }
 }
 
 // Extension method for registration
-public static class RequestLoggingMiddlewareExtensions
+public static class TenantResolutionMiddlewareExtensions
 {
-    public static IApplicationBuilder UseRequestLogging(this IApplicationBuilder builder)
+    public static IApplicationBuilder UseTenantResolution(this IApplicationBuilder builder)
     {
-        return builder.UseMiddleware<RequestLoggingMiddleware>();
+        return builder.UseMiddleware<TenantResolutionMiddleware>();
     }
 }
 
 // Usage in Program.cs
-app.UseRequestLogging();
+app.UseTenantResolution();
 ```
 
 ### Global Exception Handler

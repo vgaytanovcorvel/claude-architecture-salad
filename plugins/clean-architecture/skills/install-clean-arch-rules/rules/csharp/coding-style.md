@@ -79,8 +79,9 @@ public class UserService(
 {
     public virtual async Task<UserDto?> GetUserByIdAsync(int id, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Fetching user (UserId: {UserId}).", id);
-        var user = await userRepository.GetByIdAsync(id, cancellationToken);
+        // No logging here — telemetry captures request/response automatically
+        // (see common/logging.md)
+        var user = await userRepository.UserSingleOrDefaultByIdAsync(id, cancellationToken);
         return user is null ? null : MapToDto(user);
     }
 }
@@ -362,24 +363,26 @@ global using Microsoft.Extensions.Logging;
 ALWAYS use `ILogger<T>` for logging. NEVER use `Console.WriteLine`:
 
 ```csharp
-// CORRECT: Structured logging with primary constructor
-public class UserService(
-    DbContext dbContext,
-    ILogger<UserService> logger)
+// CORRECT: ILogger<T> with structured logging — only log what telemetry can't capture
+// (see common/logging.md for when to log)
+public class PaymentService(
+    IPaymentGateway gateway,
+    ILogger<PaymentService> logger)
 {
-    public async Task<UserDto> GetUserAsync(int userId)
+    public virtual async Task<PaymentResult> ProcessRefundAsync(
+        int orderId, decimal amount, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Fetching user (UserId: {UserId}).", userId);
+        var result = await gateway.RefundAsync(orderId, amount, cancellationToken);
 
-        var user = await dbContext.Users.FindAsync(userId);
-
-        if (user is null)
+        if (result.GatewayStatus == "success" && !result.OrderUpdated)
         {
-            logger.LogWarning("User not found (UserId: {UserId}).", userId);
-            throw new NotFoundException($"User not found (UserId: {userId}).");
+            // Business-critical anomaly not visible in telemetry
+            logger.LogError(
+                "Payment gateway returned success but order was not updated (OrderId: {OrderId}, Amount: {Amount}).",
+                orderId, amount);
         }
 
-        return MapToDto(user);
+        return result;
     }
 }
 
@@ -387,6 +390,13 @@ public class UserService(
 public async Task<UserDto> GetUserAsync(int userId)
 {
     Console.WriteLine($"Fetching user {userId}");  // ❌ Use ILogger
+    // ...
+}
+
+// ALSO WRONG: ILogger with routine operation logging
+public async Task<UserDto> GetUserAsync(int userId)
+{
+    logger.LogInformation("Fetching user (UserId: {UserId}).", userId);  // ❌ Telemetry captures this
     // ...
 }
 ```
@@ -408,7 +418,7 @@ public decimal CalculateDiscount(Customer customer) => customer.Tier switch
 // CORRECT: Is patterns with type testing
 if (result is UserDto { IsActive: true } user)
 {
-    logger.LogInformation("Active user (UserName: {UserName}).", user.Name);
+    await SendWelcomeBackAsync(user);
 }
 
 // CORRECT: Null checking patterns

@@ -360,21 +360,16 @@ public interface IUserService
 // Service implementation with primary constructor
 public class UserService(
     IUserRepository userRepository,
-    IMapper mapper,
-    ILogger<UserService> logger) : IUserService
+    IMapper mapper) : IUserService
 {
     public virtual async Task<UserDto?> GetUserByIdAsync(int id, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Fetching user (UserId: {UserId}).", id);
-
         var user = await userRepository.UserSingleOrDefaultByIdAsync(id, cancellationToken);
         return user is null ? null : mapper.Map<UserDto>(user);
     }
 
     public virtual async Task<UserDto> CreateUserAsync(CreateUserRequest request, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Creating user (Email: {Email}).", request.Email);
-
         // Business logic: Check for duplicate email — SingleOrDefault since absence is expected
         var existingUser = await userRepository.UserSingleOrDefaultByEmailAsync(request.Email, cancellationToken);
         if (existingUser is not null)
@@ -399,7 +394,6 @@ public class UserService(
 
     public virtual async Task DeleteUserAsync(int id, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Deleting user (UserId: {UserId}).", id);
         await userRepository.UserDeleteAsync(id, cancellationToken);
     }
 }
