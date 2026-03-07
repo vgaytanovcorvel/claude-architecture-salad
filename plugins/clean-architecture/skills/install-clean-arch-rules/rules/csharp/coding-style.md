@@ -440,7 +440,7 @@ var names = new List<string> { "Alice", "Bob", "Charlie" };
 Same as common/coding-style.md:
 - 200-400 lines typical, 800 max
 - Extract utilities from large classes
-- Organize by feature/domain, not by type
+- Organize by type into designated folders (Models/, Enums/, Exceptions/, etc.) as defined in modularization rules
 - One public class per file (nested private classes allowed)
 - Limit size of methods by splitting into smaller ones (over 8 lines needs justification)
 

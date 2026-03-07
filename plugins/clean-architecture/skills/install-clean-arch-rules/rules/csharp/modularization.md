@@ -18,6 +18,15 @@ This document defines the standard assembly structure for C# solutions. Each ass
 - Shared utilities used by both client and server
 - Cross-cutting concerns applicable to both tiers
 
+**Folder Structure**:
+```
+[ProjectNamespace].Common/
+├── Constants/          ← Shared constant values
+├── Enums/              ← Shared enumerations
+├── Models/             ← Shared DTOs and data models
+└── Utilities/          ← Shared helper/utility classes
+```
+
 **Dependencies**: Minimal external dependencies
 
 **When to create**: When you have code that needs to be shared between client and server projects
@@ -33,6 +42,14 @@ This document defines the standard assembly structure for C# solutions. Each ass
 - API client interfaces and implementations
 - Request/response models specific to API communication
 - Client-side proxy classes
+
+**Folder Structure**:
+```
+[ProjectNamespace].Client/
+├── Interfaces/         ← Client service interfaces
+├── Models/             ← Request/response models for API communication
+└── Services/           ← HTTP client and proxy implementations
+```
 
 **Dependencies**:
 - [ProjectNamespace].Common
@@ -55,6 +72,17 @@ This document defines the standard assembly structure for C# solutions. Each ass
 - Domain enumerations
 - Value objects
 
+**Folder Structure**:
+```
+[ProjectNamespace].Abstractions/
+├── Constants/          ← Domain constants
+├── Enums/              ← Domain enumerations
+├── Exceptions/         ← Custom exception types
+├── Interfaces/         ← Service and repository interfaces (contracts)
+├── Models/             ← Domain models (persistence-ignorant)
+└── ValueObjects/       ← Value objects
+```
+
 **Dependencies**: Minimal; should avoid heavy framework dependencies
 
 **Best Practices**:
@@ -76,6 +104,13 @@ This document defines the standard assembly structure for C# solutions. Each ass
 - Application services
 - Validation logic
 - Business rules enforcement
+
+**Folder Structure**:
+```
+[ProjectNamespace].Implementation/
+├── Services/           ← Service interface implementations
+└── Validators/         ← FluentValidation validators
+```
 
 **Dependencies**:
 - [ProjectNamespace].Abstractions
@@ -101,6 +136,16 @@ This document defines the standard assembly structure for C# solutions. Each ass
 - Database context classes
 - Data migrations
 - Query specifications
+
+**Folder Structure**:
+```
+[ProjectNamespace].Repository/
+├── Contexts/           ← DbContext classes
+├── Configurations/     ← EF Core entity type configurations (IEntityTypeConfiguration<T>)
+├── Entities/           ← ORM entity classes (with navigation properties, attributes)
+├── Migrations/         ← EF Core database migrations
+└── Repositories/       ← Repository interface implementations
+```
 
 **Dependencies**:
 - [ProjectNamespace].Abstractions
@@ -132,6 +177,16 @@ This document defines the standard assembly structure for C# solutions. Each ass
 - Model binders
 - Action filters and result filters
 - Web-specific dependency injection configuration
+
+**Folder Structure**:
+```
+[ProjectNamespace].Web.Core/
+├── Controllers/        ← MVC/API controllers
+├── Filters/            ← Action filters, result filters, exception filters
+├── Middleware/          ← Custom middleware components
+├── ModelBinders/       ← Custom model binders
+└── Extensions/         ← DI registration and pipeline extension methods
+```
 
 **Dependencies**:
 - [ProjectNamespace].Abstractions
