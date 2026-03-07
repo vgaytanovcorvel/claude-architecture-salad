@@ -16,7 +16,7 @@ Encapsulate data access behind a consistent interface. Repository interfaces ope
 
 **Domain vs Entity Separation (CRITICAL)**: ORM entity classes (with navigation properties, `[Table]` attributes, etc.) are defined in the Repository project as an implementation detail and MUST NOT leak outside it. Repository implementations map between domain models and ORM entities internally.
 
-**Thread Safety (CRITICAL)**: Repositories accept `IDbContextFactory<TContext>` (not `TContext` directly) and create a short-lived `await using` DbContext in every method. This ensures each operation gets its own DbContext, making repositories safe to use from concurrent scopes, background services, and parallel calls. Never store a DbContext as a field.
+**Thread Safety (CRITICAL)**: Repositories derive from `RepositoryBase<TContext>`, which accepts `IDbContextFactory<TContext>` (not `TContext` directly) and exposes a `CreateContextAsync` method. Each repository method creates a short-lived `await using` DbContext via `CreateContextAsync`. This ensures each operation gets its own DbContext, making repositories safe to use from concurrent scopes, background services, and parallel calls. Never store a DbContext as a field.
 
 **Repository Contract**: Read methods use `AsNoTracking()` and return new domain model instances. Write methods accept domain models, map to EF Core entities, persist via change tracking internally, and return new domain model instances reflecting the saved state. EF Core's change tracking and mutation are confined to the repository implementation — callers only ever see plain domain objects.
 
@@ -57,9 +57,22 @@ public class UserEntity
     public ICollection<TodoItemEntity> Todos { get; set; } = [];  // Navigation property — ORM only
 }
 
-// Repository implementation — uses IDbContextFactory for thread safety
-// Each method creates its own short-lived DbContext via await using
-public class UserRepository(IDbContextFactory<ApplicationDbContext> dbContextFactory) : IUserRepository
+// Base class — centralizes IDbContextFactory injection and DbContext creation
+// All repositories derive from this to avoid repeating the factory boilerplate
+public abstract class RepositoryBase<TContext>(
+    IDbContextFactory<TContext> contextFactory) where TContext : DbContext
+{
+    protected virtual async Task<TContext> CreateContextAsync(CancellationToken cancellationToken)
+    {
+        return await contextFactory.CreateDbContextAsync(cancellationToken);
+    }
+}
+
+// Repository implementation — derives from RepositoryBase for context creation
+// Each method creates its own short-lived DbContext via await using + CreateContextAsync
+public class UserRepository(
+    IDbContextFactory<ApplicationDbContext> contextFactory)
+    : RepositoryBase<ApplicationDbContext>(contextFactory), IUserRepository
 {
     // Single — throws NotFoundException when not found
     public async Task<User> UserSingleByIdAsync(int id, CancellationToken cancellationToken)
@@ -77,7 +90,7 @@ public class UserRepository(IDbContextFactory<ApplicationDbContext> dbContextFac
     // SingleOrDefault — returns null when not found
     public async Task<User?> UserSingleOrDefaultByIdAsync(int id, CancellationToken cancellationToken)
     {
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await using var dbContext = await CreateContextAsync(cancellationToken);
 
         var entity = await dbContext.Users
             .AsNoTracking()
@@ -88,7 +101,7 @@ public class UserRepository(IDbContextFactory<ApplicationDbContext> dbContextFac
 
     public async Task<User?> UserSingleOrDefaultByEmailAsync(string email, CancellationToken cancellationToken)
     {
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await using var dbContext = await CreateContextAsync(cancellationToken);
 
         var entity = await dbContext.Users
             .AsNoTracking()
@@ -99,7 +112,7 @@ public class UserRepository(IDbContextFactory<ApplicationDbContext> dbContextFac
 
     public async Task<User> UserAddAsync(User user, CancellationToken cancellationToken)
     {
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await using var dbContext = await CreateContextAsync(cancellationToken);
 
         var entity = MapToEntity(user);
         var entry = await dbContext.Users.AddAsync(entity, cancellationToken);
@@ -109,7 +122,7 @@ public class UserRepository(IDbContextFactory<ApplicationDbContext> dbContextFac
 
     public async Task<User> UserUpdateAsync(User user, CancellationToken cancellationToken)
     {
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await using var dbContext = await CreateContextAsync(cancellationToken);
 
         var entity = MapToEntity(user);
         dbContext.Users.Update(entity);
