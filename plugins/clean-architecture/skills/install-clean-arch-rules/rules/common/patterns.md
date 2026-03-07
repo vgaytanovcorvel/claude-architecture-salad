@@ -137,14 +137,13 @@ Use a consistent envelope for all API responses:
   "success": boolean,    // true for successful operations, false for errors
   "data": T | null,      // Response payload (null on error)
   "error": string | null,// Error message (null on success)
-  "errorCode": number    // REQUIRED — HTTP status code (e.g., 200, 404, 500). Defaults to 200 for success responses.
+  "statusCode": number   // REQUIRED — HTTP status code (e.g., 200, 404, 500). Defaults to 200 for success responses.
 }
 ```
 
-**CRITICAL**: `errorCode` is ALWAYS required on every response. For success responses, use HTTP 200 (OK) unless a different status applies. For failure responses, always specify the appropriate HTTP error code.
+**CRITICAL**: `statusCode` is ALWAYS required on every response. For success responses, use HTTP 200 (OK) unless a different status applies. For failure responses, always specify the appropriate HTTP error code.
 
 **Benefits**:
 - Consistent client-side error handling
 - Clear success/failure indication
-- Standardized pagination metadata
-- Programmatic error code handling via `errorCode`
+- Programmatic status handling via `statusCode`

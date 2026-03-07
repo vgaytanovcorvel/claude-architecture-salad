@@ -224,31 +224,24 @@ services.AddFluentValidationAutoValidation();
 
 Use a consistent envelope for all API responses:
 
-**CRITICAL**: `ErrorCode` is ALWAYS required. Use `HttpStatusCode` enum values. The `Ok()` factory methods default to `HttpStatusCode.OK`. The `Fail()` factory method requires an explicit error code.
+**CRITICAL**: `StatusCode` is ALWAYS required. Use `HttpStatusCode` enum values. The `Ok()` factory method defaults to `HttpStatusCode.OK`. The `Fail()` factory method requires an explicit status code.
 
 ```csharp
-// Response envelope record — ErrorCode is always required
+// Response envelope record — StatusCode is always required
 public record ApiResponse<T>
 {
     public bool Success { get; init; }
     public T? Data { get; init; }
     public string? Error { get; init; }
-    public HttpStatusCode ErrorCode { get; init; }
-    public ResponseMetadata? Meta { get; init; }
+    public HttpStatusCode StatusCode { get; init; }
 
-    // Success overloads (ErrorCode defaults to HttpStatusCode.OK)
     public static ApiResponse<T> Ok(T data) =>
-        new() { Success = true, Data = data, ErrorCode = HttpStatusCode.OK };
+        new() { Success = true, Data = data, StatusCode = HttpStatusCode.OK };
 
-    public static ApiResponse<T> Ok(T data, ResponseMetadata meta) =>
-        new() { Success = true, Data = data, ErrorCode = HttpStatusCode.OK, Meta = meta };
-
-    // Failure — ErrorCode is mandatory (no overload without it)
-    public static ApiResponse<T> Fail(string error, HttpStatusCode errorCode) =>
-        new() { Success = false, Error = error, ErrorCode = errorCode };
+    // Failure — StatusCode is mandatory (no overload without it)
+    public static ApiResponse<T> Fail(string error, HttpStatusCode statusCode) =>
+        new() { Success = false, Error = error, StatusCode = statusCode };
 }
-
-public record ResponseMetadata(int Total, int Page, int Limit);
 
 // Usage in controller
 [HttpGet("{id}")]
@@ -270,26 +263,6 @@ public async Task<ActionResult<ApiResponse<UserDto>>> GetUser(int id, Cancellati
         logger.LogError(ex, "Error fetching user (UserId: {UserId}).", id);
         return StatusCode(500, ApiResponse<UserDto>.Fail("Internal server error", HttpStatusCode.InternalServerError));
     }
-}
-
-// Paginated response
-[HttpGet]
-public async Task<ActionResult<ApiResponse<IReadOnlyList<UserDto>>>> GetUsers(
-    [FromQuery] int page,
-    [FromQuery] int limit,
-    CancellationToken cancellationToken)
-{
-    var users = await _userRepository.GetAllAsync(cancellationToken);
-    var total = users.Count;
-
-    var paginatedUsers = users
-        .Skip((page - 1) * limit)
-        .Take(limit)
-        .Select(u => _mapper.Map<UserDto>(u))
-        .ToList();
-
-    var meta = new ResponseMetadata(total, page, limit);
-    return Ok(ApiResponse<IReadOnlyList<UserDto>>.Ok(paginatedUsers, meta));
 }
 ```
 

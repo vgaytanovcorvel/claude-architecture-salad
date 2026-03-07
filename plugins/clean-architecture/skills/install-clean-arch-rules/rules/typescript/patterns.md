@@ -16,12 +16,7 @@ interface ApiResponse<T> {
   success: boolean
   data?: T
   error?: string
-  errorCode: number  // REQUIRED — HTTP status code (e.g., 200, 404, 500)
-  meta?: {
-    total: number
-    page: number
-    limit: number
-  }
+  statusCode: number  // REQUIRED — HTTP status code (e.g., 200, 404, 500)
 }
 ```
 
