@@ -457,6 +457,7 @@ Same as common/coding-style.md:
 ## Code Quality Checklist
 
 Before marking C# work complete:
+- [ ] Every method has cyclomatic complexity ≤ 6 (see common/coding-style.md)
 - [ ] Nullable reference types enabled, no null-forgiving operators
 - [ ] `record` types used for immutable models (positional syntax)
 - [ ] FluentValidation used for request validation (no Data Annotations on records)

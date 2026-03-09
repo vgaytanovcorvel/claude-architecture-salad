@@ -80,10 +80,23 @@ ALWAYS validate at system boundaries:
 - **User Feedback:** Provide user-friendly messages in UI-facing code; log detailed context only on the server side via telemetry.
 - **Zero Trust:** Never trust external data (API responses, user input, file content).
 
+## Cyclomatic Complexity (CRITICAL)
+
+**Maximum cyclomatic complexity per function: 6.** Functions exceeding 6 MUST be split.
+
+Each decision point adds 1 (starting from 1): `if`, `else if`, `case`/pattern arm, `&&`, `||`, `catch`, `?.`, `??`, loops, ternary `? :`.
+
+**Reduction techniques**:
+- Guard clauses (early returns)
+- Extract method (move conditional blocks into named helpers)
+- Lookup tables / dictionaries (replace switch/if chains)
+- Strategy pattern (replace conditional behavior with polymorphism)
+
 ## Code Quality Checklist
 
 Before marking work complete:
 
+- [ ] **Complexity:** Every function has cyclomatic complexity ≤ 6.
 - [ ] **Readability:** Code is readable and well-named.
 - [ ] **Sizing:** Functions are small (<50 lines) and files are focused (<800 lines).
 - [ ] **Nesting:** No deep nesting (>4 levels).
