@@ -393,49 +393,6 @@ public class UserService
 }
 ```
 
-## Rate Limiting
-
-Protect against brute force and DoS attacks:
-
-```csharp
-// .NET 7+ built-in rate limiting
-builder.Services.AddRateLimiter(options =>
-{
-    options.AddFixedWindowLimiter("fixed", opt =>
-    {
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.PermitLimit = 10;
-        opt.QueueLimit = 0;
-    });
-
-    options.AddSlidingWindowLimiter("sliding", opt =>
-    {
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.PermitLimit = 100;
-        opt.SegmentsPerWindow = 6;
-    });
-});
-
-var app = builder.Build();
-app.UseRateLimiter();
-
-// Apply to endpoints
-app.MapPost("/api/login", async (LoginRequest request) =>
-{
-    // Login logic
-})
-.RequireRateLimiting("fixed");  // 10 requests per minute
-
-// Apply to controllers
-[EnableRateLimiting("sliding")]
-[ApiController]
-[Route("api/[controller]")]
-public class UsersController : ControllerBase
-{
-    // All actions rate-limited
-}
-```
-
 ## Sensitive Data in Logs
 
 NEVER log sensitive information:
@@ -482,7 +439,6 @@ Before committing code:
 - [ ] CORS configured correctly (specific origins in production)
 - [ ] Anti-forgery tokens enabled for state-changing operations
 - [ ] Passwords hashed (Identity or BCrypt, not plain text/MD5/SHA)
-- [ ] Rate limiting on authentication endpoints
 - [ ] Sensitive data not logged (no passwords, tokens, card numbers)
 - [ ] HTTPS enforced in production (`app.UseHttpsRedirection()`)
 
