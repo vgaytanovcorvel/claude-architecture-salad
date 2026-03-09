@@ -28,14 +28,18 @@ If arguments are missing or ambiguous, ask the user.
 
 1. Read `<repo-root>/rules/` recursively to catalog all available rule files.
 2. Read the **full content** of every rule file, paying special attention to:
-   - `csharp/modularization.md` — defines the assembly structure, dependency flow, folder layout, and naming conventions.
+   - `csharp/modularization.md` — defines the assembly structure, dependency flow, folder layout, and naming conventions. **This file is used for scaffolding only — do NOT include it in CLAUDE.md `@` references.** Each module's CLAUDE.md already documents its purpose and dependency constraints.
    - `csharp/coding-style.md` — coding conventions that apply to generated code.
-   - `csharp/patterns.md` — patterns to follow in generated code.
+   - `csharp/domain.md` — domain model and contract patterns.
+   - `csharp/services.md` — service layer, validation, and DI patterns.
+   - `csharp/persistence.md` — repository, EF Core, and data access patterns.
+   - `csharp/presentation.md` — controller, minimal API, and middleware patterns.
+   - `csharp/hosting.md` — Program.cs pipeline, background services, and containerization.
    - `common/coding-style.md` — universal coding conventions.
 3. Build a catalog of rules organized by:
    - **Language**: common (applies to all), csharp, typescript
-   - **Concern**: coding-style, testing, security, patterns, performance, logging, modularization
-   - **Applicability criteria**: What kind of project/module does each rule apply to? (e.g., backend services, Angular apps, test projects, shared libraries)
+   - **Concern**: coding-style, testing, security, domain, services, persistence, presentation, hosting, logging
+   - **Applicability criteria**: What kind of project/module does each rule apply to? (e.g., domain libraries, service layers, repositories, web APIs, hosting apps, Angular frontends, test projects)
 
 ## Step 3 — Read Root CLAUDE.md
 
@@ -138,25 +142,26 @@ For each project (both existing and newly created), generate a `CLAUDE.md` follo
 
 Use the **minimum applicable set** principle. Only include rules where the project genuinely needs that guidance. Follow this matrix (adapt based on actual rule contents):
 
-| Rule File | Domain Lib | App/Service Layer | Infrastructure | Web API/Backend | Angular Frontend | Test Project |
-|---|---|---|---|---|---|---|
-| common/coding-style.md | Y | Y | Y | Y | Y | Y |
-| common/logging.md | — | Y | Y | Y | — | — |
-| common/patterns.md | Y | Y | Y | Y | Y | — |
-| common/performance.md | — | Y | Y | Y | Y | — |
-| common/security.md | — | — | Y | Y | Y | — |
-| common/testing.md | — | — | — | — | — | Y |
-| csharp/coding-style.md | Y (C#) | Y (C#) | Y (C#) | Y (C#) | — | Y (C#) |
-| csharp/backend.md | — | — | — | Y (C#) | — | — |
-| csharp/modularization.md | Y (C#) | Y (C#) | Y (C#) | Y (C#) | — | — |
-| csharp/patterns.md | Y (C#) | Y (C#) | Y (C#) | Y (C#) | — | — |
-| csharp/security.md | — | — | Y (C#) | Y (C#) | — | — |
-| csharp/testing.md | — | — | — | — | — | Y (C#) |
-| typescript/coding-style.md | — | — | — | — | Y (TS) | Y (TS) |
-| typescript/angular.md | — | — | — | — | Y | — |
-| typescript/patterns.md | — | — | — | — | Y (TS) | — |
-| typescript/security.md | — | — | — | — | Y (TS) | — |
-| typescript/testing.md | — | — | — | — | — | Y (TS) |
+| Rule File | Domain Lib | App/Service Layer | Infrastructure | Web API (Web.Core) | Hosting (Web.Server/Api) | Angular Frontend | Test Project |
+|---|---|---|---|---|---|---|---|
+| common/coding-style.md | Y | Y | Y | Y | Y | Y | Y |
+| common/logging.md | — | Y | — | Y | Y | — | — |
+| common/patterns.md | Y | Y | Y | Y | Y | Y | — |
+| common/security.md | — | — | Y | Y | Y | Y | — |
+| common/testing.md | — | — | — | — | — | — | Y |
+| csharp/coding-style.md | Y (C#) | Y (C#) | Y (C#) | Y (C#) | Y (C#) | — | Y (C#) |
+| csharp/domain.md | Y (C#) | Y (C#) | — | — | — | — | — |
+| csharp/services.md | — | Y (C#) | — | Y (C#) | — | — | — |
+| csharp/persistence.md | — | — | Y (C#) | — | Y (C#) | — | — |
+| csharp/presentation.md | — | — | — | Y (C#) | Y (C#) | — | — |
+| csharp/hosting.md | — | — | — | — | Y (C#) | — | — |
+| csharp/security.md | — | — | Y (C#) | Y (C#) | Y (C#) | — | — |
+| csharp/testing.md | — | — | — | — | — | — | Y (C#) |
+| typescript/coding-style.md | — | — | — | — | — | Y (TS) | Y (TS) |
+| typescript/angular.md | — | — | — | — | — | Y | — |
+| typescript/patterns.md | — | — | — | — | — | Y (TS) | — |
+| typescript/security.md | — | — | — | — | — | Y (TS) | — |
+| typescript/testing.md | — | — | — | — | — | — | Y (TS) |
 
 ### 5b. Generate CLAUDE.md Content
 

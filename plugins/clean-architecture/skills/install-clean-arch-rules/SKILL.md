@@ -18,15 +18,17 @@ rules/
 │   ├── coding-style.md
 │   ├── logging.md
 │   ├── patterns.md
-│   ├── performance.md
 │   ├── security.md
 │   └── testing.md
 ├── csharp/
-│   ├── backend.md
 │   ├── coding-style.md
+│   ├── domain.md
+│   ├── hosting.md
 │   ├── modularization.md
-│   ├── patterns.md
+│   ├── persistence.md
+│   ├── presentation.md
 │   ├── security.md
+│   ├── services.md
 │   └── testing.md
 └── typescript/
     ├── angular.md
