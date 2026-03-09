@@ -324,6 +324,10 @@ Solution: MyProject
     └── MyProject.Web.Api.Tests/
 ```
 
+## Central Package Management (CRITICAL)
+
+Every solution MUST use Central Package Management via `Directory.Packages.props` at the solution root. Individual `.csproj` files use `<PackageReference>` without `Version`.
+
 ---
 
 ## Dependency Flow Guidelines
