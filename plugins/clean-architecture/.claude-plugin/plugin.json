@@ -1,5 +1,5 @@
 {
   "name": "clean-architecture",
   "description": "Scaffolds .NET clean architecture projects, installs coding rules, and generates per-module CLAUDE.md files",
-  "version": "2.1.0"
+  "version": "2.2.0"
 }
