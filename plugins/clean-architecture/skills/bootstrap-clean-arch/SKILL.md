@@ -29,6 +29,7 @@ If arguments are missing or ambiguous, ask the user.
 1. Read `<repo-root>/rules/` recursively to catalog all available rule files.
 2. Read the **full content** of every rule file, paying special attention to:
    - `csharp/modularization.md` — defines the assembly structure, dependency flow, folder layout, and naming conventions. **This file is used for scaffolding only — do NOT include it in CLAUDE.md `@` references.** Each module's CLAUDE.md already documents its purpose and dependency constraints.
+   - `csharp/scaffolding.md` — solution file setup, Central Package Management, `.csproj` templates, NuGet package assignments, Angular `.esproj`, test project wiring, starter code conventions, and build verification. **This file is used for scaffolding only — do NOT include it in CLAUDE.md `@` references.**
    - `csharp/coding-style.md` — coding conventions that apply to generated code.
    - `csharp/domain.md` — domain model and contract patterns.
    - `csharp/services.md` — service layer, validation, and DI patterns.
@@ -48,94 +49,12 @@ Read the root `CLAUDE.md` to understand the existing repository architecture, co
 
 ## Step 4 — Scaffold Project Structure (skip if `--claude-only`)
 
-For each requested module, create the project skeleton **following the rules from modularization.md exactly**:
+Follow `csharp/scaffolding.md` and `csharp/modularization.md` as the joint source of truth for everything created in this step. Do not invent structure beyond what they specify.
 
-### 4a. Solution-Level Layout
+- **`csharp/modularization.md`** governs: which modules to create, their internal folder organization by type, and the dependency graph.
+- **`csharp/scaffolding.md`** governs: solution file setup, Central Package Management (`Directory.Packages.props`), `.csproj` format per module type, NuGet package assignments, Angular `.esproj`, test project wiring, starter code per module, and the build verification command.
 
-Create the standard directory structure from modularization rules:
-
-```
-src/
-├── [ProjectNamespace].Common/
-├── [ProjectNamespace].Abstractions/
-├── [ProjectNamespace].Implementation/
-├── [ProjectNamespace].Repository/
-├── [ProjectNamespace].Client/
-├── [ProjectNamespace].Web.Core/
-├── [ProjectNamespace].Web.Server/
-├── [ProjectNamespace].Web.Api/
-└── [projectnamespace].client/          (Angular, lowercase)
-
-tests/
-├── [ProjectNamespace].Common.Tests/
-├── [ProjectNamespace].Abstractions.Tests/
-├── ... (one test project per src module)
-```
-
-Only create directories for the modules the user requested.
-
-### 4b. .csproj Files
-
-For each .NET module, generate a `.csproj` file with:
-- Appropriate `<TargetFramework>` (use the latest stable .NET version, currently `net9.0`, or match existing projects in the repo)
-- `<RootNamespace>` and `<AssemblyName>` matching the project name
-- `<ProjectReference>` entries following the **Dependency Flow Guidelines** from modularization.md exactly:
-  - Common: no project references
-  - Abstractions: Common
-  - Implementation: Abstractions, Common
-  - Repository: Abstractions, Common
-  - Client: Abstractions, Common
-  - Web.Core: Abstractions, Implementation, Common
-  - Web.Server: Web.Core, Implementation, Repository (+ Angular .esproj if applicable)
-  - Web.Api: Web.Core, Implementation, Repository
-  - Cli: Abstractions, Implementation, Repository, Common
-- Appropriate NuGet package references based on module type (e.g., `Microsoft.EntityFrameworkCore` for Repository, `Microsoft.AspNetCore.*` for Web projects)
-- `<ImplicitUsings>enable</ImplicitUsings>` and `<Nullable>enable</Nullable>`
-
-### 4c. Angular .esproj (if Angular module requested)
-
-Follow the `.esproj` template from modularization.md exactly:
-- Use lowercase naming: `[projectnamespace].client`
-- Create `angular.json`, `package.json`, `tsconfig.json`, `proxy.conf.js`
-- Create the folder structure: `src/app/core/`, `src/app/features/`, `src/app/shared/`, `src/app/layout/`
-- Create minimal bootstrap files: `main.ts`, `app.component.ts`, `app.config.ts`, `app.routes.ts`
-
-### 4d. Test Projects
-
-For each src module, create a corresponding test project:
-- `[ProjectNamespace].[AssemblyType].Tests`
-- Reference the module being tested
-- Add xUnit, FluentAssertions, and NSubstitute NuGet references
-- Include a placeholder test class
-
-### 4e. Solution File
-
-If a `.sln` file does not exist at the repo root, create one. If it exists, add the new projects to it using `dotnet sln add`.
-
-Organize the solution into folders:
-- `src` — all source projects
-- `tests` — all test projects
-
-### 4f. Starter Code
-
-For each module, generate minimal starter files that demonstrate the module's role. Keep these minimal — just enough to compile and show the pattern:
-
-| Module | Starter Files |
-|---|---|
-| Common | (empty — placeholder README only) |
-| Abstractions | One example interface (e.g., `IExampleService.cs`), one example model |
-| Implementation | One service implementing the example interface, DI registration extension |
-| Repository | DbContext, one example repository, DI registration extension |
-| Client | One example API client |
-| Web.Core | One example controller |
-| Web.Server | `Program.cs` with middleware pipeline |
-| Web.Api | `Program.cs` with Swagger setup |
-| Cli | `Program.cs` with RootCommand + one example subcommand using System.CommandLine + IHost DI wiring |
-
-**All generated code MUST follow the rules** from `rules/csharp/coding-style.md` and `rules/csharp/patterns.md`. Specifically:
-- No default parameters — use overloads
-- All async methods must accept `CancellationToken` as the last parameter
-- Follow naming conventions from the rules
+Only create modules the user requested.
 
 ## Step 5 — Generate CLAUDE.md Files
 

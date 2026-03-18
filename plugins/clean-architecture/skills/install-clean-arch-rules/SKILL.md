@@ -16,17 +16,20 @@ Find the `rules/` subdirectory that is a sibling of this `SKILL.md` file (inside
 rules/
 ├── common/
 │   ├── coding-style.md
+│   ├── command-line.md
 │   ├── logging.md
 │   ├── patterns.md
 │   ├── security.md
 │   └── testing.md
 ├── csharp/
 │   ├── coding-style.md
+│   ├── command-line.md
 │   ├── domain.md
 │   ├── hosting.md
 │   ├── modularization.md
 │   ├── persistence.md
 │   ├── presentation.md
+│   ├── scaffolding.md
 │   ├── security.md
 │   ├── services.md
 │   └── testing.md
