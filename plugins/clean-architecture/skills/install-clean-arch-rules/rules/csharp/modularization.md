@@ -238,6 +238,33 @@ The Angular SPA is a **separate sibling `.esproj` project** — see `typescript/
 
 ---
 
+### 9. [ProjectNamespace].Cli
+
+**Purpose**: Console application / CLI host
+
+**Contains**:
+- Program.cs and CLI application entry point
+- RootCommand definition and subcommand wiring
+- CommandLineBuilder configuration and middleware pipeline
+- DI container and configuration setup
+- Command classes (thin handlers delegating to Implementation services)
+
+**Dependencies**:
+- [ProjectNamespace].Abstractions
+- [ProjectNamespace].Implementation
+- [ProjectNamespace].Repository
+- [ProjectNamespace].Common
+
+**When to create**: When building a CLI tool, developer tooling, or automation scripts for the domain.
+
+**Best Practices**:
+- Keep command handlers thin — all business logic stays in .Implementation
+- Use System.CommandLine for all option/argument parsing
+- Wire IHost via CommandLineBuilder.UseHost() for DI integration
+- Follow rules in csharp/command-line.md
+
+---
+
 ## Test Projects
 
 ### Naming Convention
@@ -253,6 +280,7 @@ For each assembly, create a corresponding test project:
 - [ProjectNamespace].Web.Core.Tests
 - [ProjectNamespace].Web.Server.Tests
 - [ProjectNamespace].Web.Api.Tests
+- [ProjectNamespace].Cli.Tests
 - [ProjectNamespace].Client.Tests
 
 ### Test Project Structure
@@ -311,7 +339,8 @@ Solution: MyProject
 │   ├── MyProject.Client/
 │   ├── MyProject.Web.Core/
 │   ├── MyProject.Web.Server/           ← References myproject.client.esproj
-│   └── MyProject.Web.Api/
+│   ├── MyProject.Web.Api/
+│   └── MyProject.Cli/
 │
 └── tests/
     ├── MyProject.Common.Tests/
@@ -321,7 +350,8 @@ Solution: MyProject
     ├── MyProject.Client.Tests/
     ├── MyProject.Web.Core.Tests/
     ├── MyProject.Web.Server.Tests/
-    └── MyProject.Web.Api.Tests/
+    ├── MyProject.Web.Api.Tests/
+    └── MyProject.Cli.Tests/
 ```
 
 ## Central Package Management (CRITICAL)
@@ -342,6 +372,7 @@ Every solution MUST use Central Package Management via `Directory.Packages.props
 6. **Web.Core** ← Abstractions, Implementation, Common
 7. **Web.Server** ← Web.Core, Implementation, Repository, client `.esproj` (ReferenceOutputAssembly=false)
 8. **Web.Api** ← Web.Core, Implementation, Repository
+9. **Cli** ← Abstractions, Implementation, Repository, Common
 
 The Angular `.esproj` has no .NET assembly dependencies — it communicates with the backend exclusively via HTTP at runtime.
 
@@ -352,6 +383,7 @@ The Angular `.esproj` has no .NET assembly dependencies — it communicates with
 - **Repository** should NOT reference Implementation or Web.*
 - **Common** should NOT reference any project assemblies
 - **Web.Server** and **Web.Api** should NOT reference each other
+- **Cli** should NOT reference Web.* assemblies
 - **Angular `.esproj`** should NOT reference any .NET assembly (it is a build-only reference)
 
 ---

@@ -18,7 +18,7 @@ Parse `$ARGUMENTS` to determine:
 
 - **`ProjectNamespace`** (required unless `--claude-only`): The root namespace for the solution (e.g., `Corvel.ToDos`, `MyCompany.Billing`). This drives all assembly naming via the `[ProjectNamespace].[AssemblyType]` convention from modularization rules.
 - **`--modules`** (optional): Comma-separated list of specific modules to create. Valid module names match the assembly types defined in `rules/csharp/modularization.md`:
-  - `Common`, `Abstractions`, `Implementation`, `Repository`, `Client`, `Web.Core`, `Web.Server`, `Web.Api`, `Angular`
+  - `Common`, `Abstractions`, `Implementation`, `Repository`, `Client`, `Web.Core`, `Web.Server`, `Web.Api`, `Angular`, `Cli`
   - If omitted, ask the user which modules they need. Do NOT create all modules by default — follow the modularization rule that says "assemblies should only be created if applicable."
 - **`--claude-only`**: Skip project scaffolding entirely. Only generate/update CLAUDE.md files for existing projects. When this flag is present, `ProjectNamespace` is optional — discover it from existing `.csproj` files.
 
@@ -35,6 +35,7 @@ If arguments are missing or ambiguous, ask the user.
    - `csharp/persistence.md` — repository, EF Core, and data access patterns.
    - `csharp/presentation.md` — controller, minimal API, and middleware patterns.
    - `csharp/hosting.md` — Program.cs pipeline, background services, and containerization.
+   - `csharp/command-line.md` — System.CommandLine patterns, DI wiring, and CLI conventions.
    - `common/coding-style.md` — universal coding conventions.
 3. Build a catalog of rules organized by:
    - **Language**: common (applies to all), csharp, typescript
@@ -87,6 +88,7 @@ For each .NET module, generate a `.csproj` file with:
   - Web.Core: Abstractions, Implementation, Common
   - Web.Server: Web.Core, Implementation, Repository (+ Angular .esproj if applicable)
   - Web.Api: Web.Core, Implementation, Repository
+  - Cli: Abstractions, Implementation, Repository, Common
 - Appropriate NuGet package references based on module type (e.g., `Microsoft.EntityFrameworkCore` for Repository, `Microsoft.AspNetCore.*` for Web projects)
 - `<ImplicitUsings>enable</ImplicitUsings>` and `<Nullable>enable</Nullable>`
 
@@ -128,6 +130,7 @@ For each module, generate minimal starter files that demonstrate the module's ro
 | Web.Core | One example controller |
 | Web.Server | `Program.cs` with middleware pipeline |
 | Web.Api | `Program.cs` with Swagger setup |
+| Cli | `Program.cs` with RootCommand + one example subcommand using System.CommandLine + IHost DI wiring |
 
 **All generated code MUST follow the rules** from `rules/csharp/coding-style.md` and `rules/csharp/patterns.md`. Specifically:
 - No default parameters — use overloads
@@ -142,26 +145,28 @@ For each project (both existing and newly created), generate a `CLAUDE.md` follo
 
 Use the **minimum applicable set** principle. Only include rules where the project genuinely needs that guidance. Follow this matrix (adapt based on actual rule contents):
 
-| Rule File | Domain Lib | App/Service Layer | Infrastructure | Web API (Web.Core) | Hosting (Web.Server/Api) | Angular Frontend | Test Project |
-|---|---|---|---|---|---|---|---|
-| common/coding-style.md | Y | Y | Y | Y | Y | Y | Y |
-| common/logging.md | — | Y | — | Y | Y | — | — |
-| common/patterns.md | Y | Y | Y | Y | Y | Y | — |
-| common/security.md | — | — | Y | Y | Y | Y | — |
-| common/testing.md | — | — | — | — | — | — | Y |
-| csharp/coding-style.md | Y (C#) | Y (C#) | Y (C#) | Y (C#) | Y (C#) | — | Y (C#) |
-| csharp/domain.md | Y (C#) | Y (C#) | — | — | — | — | — |
-| csharp/services.md | — | Y (C#) | — | Y (C#) | — | — | — |
-| csharp/persistence.md | — | — | Y (C#) | — | Y (C#) | — | — |
-| csharp/presentation.md | — | — | — | Y (C#) | Y (C#) | — | — |
-| csharp/hosting.md | — | — | — | — | Y (C#) | — | — |
-| csharp/security.md | — | — | Y (C#) | Y (C#) | Y (C#) | — | — |
-| csharp/testing.md | — | — | — | — | — | — | Y (C#) |
-| typescript/coding-style.md | — | — | — | — | — | Y (TS) | Y (TS) |
-| typescript/angular.md | — | — | — | — | — | Y | — |
-| typescript/patterns.md | — | — | — | — | — | Y (TS) | — |
-| typescript/security.md | — | — | — | — | — | Y (TS) | — |
-| typescript/testing.md | — | — | — | — | — | — | Y (TS) |
+| Rule File | Domain Lib | App/Service Layer | Infrastructure | Web API (Web.Core) | Hosting (Web.Server/Api) | Cli | Angular Frontend | Test Project |
+|---|---|---|---|---|---|---|---|---|
+| common/coding-style.md | Y | Y | Y | Y | Y | Y | Y | Y |
+| common/logging.md | — | Y | — | Y | Y | Y | — | — |
+| common/patterns.md | Y | Y | Y | Y | Y | Y | Y | — |
+| common/security.md | — | — | Y | Y | Y | Y | Y | — |
+| common/testing.md | — | — | — | — | — | — | — | Y |
+| common/command-line.md | — | — | — | — | — | Y | — | — |
+| csharp/coding-style.md | Y (C#) | Y (C#) | Y (C#) | Y (C#) | Y (C#) | Y (C#) | — | Y (C#) |
+| csharp/domain.md | Y (C#) | Y (C#) | — | — | — | — | — | — |
+| csharp/services.md | — | Y (C#) | — | Y (C#) | — | Y (C#) | — | — |
+| csharp/persistence.md | — | — | Y (C#) | — | Y (C#) | — | — | — |
+| csharp/presentation.md | — | — | — | Y (C#) | Y (C#) | — | — | — |
+| csharp/hosting.md | — | — | — | — | Y (C#) | Y (C#) | — | — |
+| csharp/command-line.md | — | — | — | — | — | Y (C#) | — | — |
+| csharp/security.md | — | — | Y (C#) | Y (C#) | Y (C#) | Y (C#) | — | — |
+| csharp/testing.md | — | — | — | — | — | — | — | Y (C#) |
+| typescript/coding-style.md | — | — | — | — | — | — | Y (TS) | Y (TS) |
+| typescript/angular.md | — | — | — | — | — | — | Y | — |
+| typescript/patterns.md | — | — | — | — | — | — | Y (TS) | — |
+| typescript/security.md | — | — | — | — | — | — | Y (TS) | — |
+| typescript/testing.md | — | — | — | — | — | — | — | Y (TS) |
 
 ### 5b. Generate CLAUDE.md Content
 
