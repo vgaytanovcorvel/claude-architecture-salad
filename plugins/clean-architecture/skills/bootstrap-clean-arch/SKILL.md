@@ -62,30 +62,30 @@ For each project (both existing and newly created), generate a `CLAUDE.md` follo
 
 ### 5a. Determine Applicable Rules
 
-Use the **minimum applicable set** principle. Only include rules where the project genuinely needs that guidance. Follow this matrix (adapt based on actual rule contents):
+Use the **minimum applicable set** principle. Only include rules where the project genuinely needs that guidance. Columns use actual assembly names from `csharp/modularization.md`. Web.Server and Web.Api share the same rule set and are combined into one column.
 
-| Rule File | Domain Lib | App/Service Layer | Infrastructure | Web API (Web.Core) | Hosting (Web.Server/Api) | Cli | Angular Frontend | Test Project |
-|---|---|---|---|---|---|---|---|---|
-| common/coding-style.md | Y | Y | Y | Y | Y | Y | Y | Y |
-| common/logging.md | — | Y | — | Y | Y | Y | — | — |
-| common/patterns.md | Y | Y | Y | Y | Y | Y | Y | — |
-| common/security.md | — | — | Y | Y | Y | Y | Y | — |
-| common/testing.md | — | — | — | — | — | — | — | Y |
-| common/command-line.md | — | — | — | — | — | Y | — | — |
-| csharp/coding-style.md | Y (C#) | Y (C#) | Y (C#) | Y (C#) | Y (C#) | Y (C#) | — | Y (C#) |
-| csharp/domain.md | Y (C#) | Y (C#) | — | — | — | — | — | — |
-| csharp/services.md | — | Y (C#) | — | Y (C#) | — | Y (C#) | — | — |
-| csharp/persistence.md | — | — | Y (C#) | — | Y (C#) | — | — | — |
-| csharp/presentation.md | — | — | — | Y (C#) | Y (C#) | — | — | — |
-| csharp/hosting.md | — | — | — | — | Y (C#) | Y (C#) | — | — |
-| csharp/command-line.md | — | — | — | — | — | Y (C#) | — | — |
-| csharp/security.md | — | — | Y (C#) | Y (C#) | Y (C#) | Y (C#) | — | — |
-| csharp/testing.md | — | — | — | — | — | — | — | Y (C#) |
-| typescript/coding-style.md | — | — | — | — | — | — | Y (TS) | Y (TS) |
-| typescript/angular.md | — | — | — | — | — | — | Y | — |
-| typescript/patterns.md | — | — | — | — | — | — | Y (TS) | — |
-| typescript/security.md | — | — | — | — | — | — | Y (TS) | — |
-| typescript/testing.md | — | — | — | — | — | — | — | Y (TS) |
+| Rule File | Common | Abstractions | Implementation | Repository | Client | Web.Core | Web.Server / Web.Api | Cli | Angular | Tests |
+|---|---|---|---|---|---|---|---|---|---|---|
+| common/coding-style.md | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y |
+| common/logging.md | — | — | Y | — | Y | Y | Y | Y | — | — |
+| common/patterns.md | Y | Y | Y | Y | Y | Y | — | Y | Y | — |
+| common/security.md | — | — | — | Y | Y | Y | Y | Y | Y | — |
+| common/testing.md | — | — | — | — | — | — | — | — | — | Y |
+| common/command-line.md | — | — | — | — | — | — | — | Y | — | — |
+| csharp/coding-style.md | Y | Y | Y | Y | Y | Y | Y | Y | — | Y (C#) |
+| csharp/domain.md | — | Y | — | — | — | — | — | — | — | — |
+| csharp/services.md | — | — | Y | — | — | Y | — | Y | — | — |
+| csharp/persistence.md | — | — | — | Y | — | — | Y | — | — | — |
+| csharp/presentation.md | — | — | — | — | — | Y | Y | — | — | — |
+| csharp/hosting.md | — | — | — | — | — | — | Y | Y | — | — |
+| csharp/command-line.md | — | — | — | — | — | — | — | Y | — | — |
+| csharp/security.md | — | — | — | Y | Y | Y | Y | Y | — | — |
+| csharp/testing.md | — | — | — | — | — | — | — | — | — | Y (C#) |
+| typescript/coding-style.md | — | — | — | — | — | — | — | — | Y | Y (TS) |
+| typescript/angular.md | — | — | — | — | — | — | — | — | Y | — |
+| typescript/patterns.md | — | — | — | — | — | — | — | — | Y | — |
+| typescript/security.md | — | — | — | — | — | — | — | — | Y | — |
+| typescript/testing.md | — | — | — | — | — | — | — | — | — | Y (TS) |
 
 ### 5b. Generate CLAUDE.md Content
 
