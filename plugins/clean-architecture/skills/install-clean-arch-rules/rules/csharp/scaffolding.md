@@ -248,6 +248,61 @@ Additional files to create (see `typescript/angular.md` for package and config d
 
 ---
 
+## Database Project (.sqlproj)
+
+Use the SDK-style SQL project format (`Microsoft.Build.Sql`), which supports `dotnet build`.
+
+### Project File
+
+```xml
+<!-- [ProjectNamespace].Database.sqlproj -->
+<Project DefaultTargets="Build">
+  <Sdk Name="Microsoft.Build.Sql" Version="0.2.0-preview" />
+  <PropertyGroup>
+    <Name>[ProjectNamespace].Database</Name>
+    <DSP>Microsoft.Data.Tools.Schema.Sql.SqlAzureV12DatabaseSchemaProvider</DSP>
+    <ModelCollation>1033, CI</ModelCollation>
+  </PropertyGroup>
+</Project>
+```
+
+### Adding to Solution
+
+```bash
+dotnet sln add src/[ProjectNamespace].Database/[ProjectNamespace].Database.sqlproj --solution-folder src
+```
+
+### DACPAC References
+
+To reference another database project (e.g., shared utilities):
+
+```xml
+<ItemGroup>
+  <ArtifactReference Include="path/to/Other.Database.dacpac">
+    <HintPath>path/to/Other.Database.dacpac</HintPath>
+    <SuppressMissingDependenciesErrors>false</SuppressMissingDependenciesErrors>
+    <DatabaseVariableLiteralValue>OtherDb</DatabaseVariableLiteralValue>
+  </ArtifactReference>
+</ItemGroup>
+```
+
+### Starter Files
+
+| File | Notes |
+|---|---|
+| `Security/[schema].sql` | `CREATE SCHEMA [schema] AUTHORIZATION [dbo]` |
+| `[schema]/Tables/Example.sql` | One example table following `common/database.md` conventions |
+
+### Build Verification
+
+```bash
+dotnet build src/[ProjectNamespace].Database/[ProjectNamespace].Database.sqlproj
+```
+
+Database projects are excluded from solution-wide `dotnet build` by default. Verify them independently.
+
+---
+
 ## Test Projects
 
 For each source module, create `tests/[ProjectNamespace].[AssemblyType].Tests/`.
@@ -304,6 +359,7 @@ Generate minimal files per module — just enough to compile and demonstrate the
 | Web.Server | `Program.cs` (HTTPS, static files, SPA fallback, DI wiring) |
 | Web.Api | `Program.cs` (HTTPS, Swagger UI, DI wiring) |
 | Cli | `Program.cs` (RootCommand + IHost via `CommandLineBuilder.UseHost()`), `Commands/ExampleCommand.cs` |
+| Database | `Security/[schema].sql` (schema creation), `[schema]/Tables/Example.sql` (example table) |
 
 ### Starter Code Constraints
 
