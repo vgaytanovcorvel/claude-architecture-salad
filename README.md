@@ -38,13 +38,25 @@ plugins/<plugin-name>/
 
 Deploys bundled coding rules (common, C#, TypeScript) to `<repo-root>/rules/`. Supports `overwrite` or `skip` arguments for existing rules.
 
+**Deployed rule sets:**
+
+| Folder | Files |
+|--------|-------|
+| `rules/common/` | coding-style, patterns, logging, security, testing, database, command-line |
+| `rules/csharp/` | coding-style, domain, services, persistence, presentation, hosting, security, testing, modularization, scaffolding, command-line |
+| `rules/typescript/` | coding-style, patterns, security, testing, angular, frontend-arch, react |
+
 ### `/bootstrap-clean-arch`
 
 Scaffolds a .NET clean architecture solution with proper dependency flow, generates per-module CLAUDE.md files with rule references. Requires rules to be deployed first.
 
-**Arguments:** `[ProjectNamespace] [--modules Module1,Module2,...] [--claude-only]`
+**Arguments:** `[ProjectNamespace] [--modules Module1,Module2,...]`
 
-**Modules:** Common, Abstractions, Implementation, Repository, Client, Web.Core, Web.Server, Web.Api, Angular
+**Source modules:** Common, Abstractions, Implementation, Repository, Database, Client, Web.Core, Web.Server, Web.Api, Angular, React, Cli
+
+**Test modules:** Common.Tests, Abstractions.Tests, Implementation.Tests, Repository.Tests, Web.Core.Tests, Web.Server.Tests, Web.Api.Tests, Cli.Tests
+
+When run without `--modules`, the skill discovers existing source and test projects, pre-computes proposed rule changes per module, and presents a review table before writing anything.
 
 ## License
 
