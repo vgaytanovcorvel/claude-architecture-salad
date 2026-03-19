@@ -21,7 +21,7 @@ The `rules/` directory must exist at the repo root with at least `rules/csharp/m
 Parse `$ARGUMENTS`:
 
 - **`ProjectNamespace`** (optional): The root namespace for the solution (e.g., `Corvel.ToDos`, `MyCompany.Billing`). Drives all assembly naming via `[ProjectNamespace].[AssemblyType]`. If omitted, discover it from existing `.csproj`/`.sqlproj` files.
-- **`--modules`** (optional): Comma-separated list of modules to operate on. Valid module names match assembly types in `rules/csharp/modularization.md`: `Common`, `Abstractions`, `Implementation`, `Repository`, `Database`, `Client`, `Web.Core`, `Web.Server`, `Web.Api`, `Angular`, `Cli`. If omitted, discover existing state first (Step 3), then ask the user (Step 4).
+- **`--modules`** (optional): Comma-separated list of modules to operate on. Valid source module names: `Common`, `Abstractions`, `Implementation`, `Repository`, `Database`, `Client`, `Web.Core`, `Web.Server`, `Web.Api`, `Angular`, `Cli`. Test modules follow the pattern `[SourceModule].Tests` (e.g., `Common.Tests`, `Implementation.Tests`). If omitted, discover existing state first (Step 3), then present a review table and ask the user (Step 4).
 
 If arguments are missing or ambiguous, proceed to discovery.
 
@@ -42,24 +42,66 @@ If arguments are missing or ambiguous, proceed to discovery.
 
 Scan the repository to determine what already exists:
 
-1. Find all `.csproj`, `.sqlproj`, and `.esproj` files under `src/`.
+1. Find all `.csproj`, `.sqlproj`, and `.esproj` files under `src/` **and** `tests/`.
 2. For each found project, note: project name, type, path, and whether a `CLAUDE.md` exists alongside it.
-3. Read the root `CLAUDE.md` if it exists.
-4. Derive `ProjectNamespace` from existing project names if not provided in arguments.
+3. Pair each test project to its source counterpart by name (e.g., `Corvel.ToDo.Implementation.Tests` pairs with `Corvel.ToDo.Implementation`).
+4. Read the root `CLAUDE.md` if it exists.
+5. Derive `ProjectNamespace` from existing project names if not provided in arguments.
 
-## Step 4 — Select Modules
+## Step 4 — Review and Select Modules
 
 If `--modules` was not provided:
 
-1. Present the discovered state clearly:
-   ```
-   Existing modules:  Abstractions, Repository
-   Not yet created:   Common, Implementation, Database, Web.Api, Client, Cli, Angular
-   ```
-2. Ask which modules to operate on. Include existing modules in the list — selecting them updates their CLAUDE.md without touching source code.
-3. Do NOT default to all modules. Only operate on what the user explicitly confirms.
+### 4a. Pre-compute proposed changes
 
-If `--modules` was provided, skip the question and proceed.
+Before asking anything, compute what the skill would do to each discovered module:
+
+- **Source modules with existing CLAUDE.md**: read the current `## Rules` section; diff it against the applicable rules from the Step 5b table. Identify rules to add and rules to remove.
+- **Source modules without CLAUDE.md**: mark as "Create".
+- **Test modules with existing CLAUDE.md**: same diff computation using the Tests column.
+- **Test modules without CLAUDE.md**: mark as "Create".
+
+### 4b. Present the review table
+
+Show a unified table covering both source and test modules:
+
+```
+Source modules:
+┌──────────────────┬───────────┬─────────────────────────────────────────────┐
+│ Module           │ CLAUDE.md │ Proposed change                             │
+├──────────────────┼───────────┼─────────────────────────────────────────────┤
+│ Common           │ ✓         │ No changes                                  │
+│ Repository       │ ✓         │ Remove common/logging.md                    │
+│ Web.Server       │ ✓         │ Remove common/patterns.md                   │
+│ Implementation   │ Missing   │ Create                                      │
+└──────────────────┴───────────┴─────────────────────────────────────────────┘
+
+Test projects:
+┌──────────────────────┬───────────┬─────────────────────────────────────────┐
+│ Module               │ CLAUDE.md │ Proposed change                         │
+├──────────────────────┼───────────┼─────────────────────────────────────────┤
+│ Common.Tests         │ Missing   │ Create (.csproj + CLAUDE.md)            │
+│ Repository.Tests     │ ✓         │ No changes                              │
+└──────────────────────┴───────────┴─────────────────────────────────────────┘
+```
+
+For modules with rule changes, list the specific rules being added (`+ rule`) or removed (`- rule`).
+
+### 4c. Ask for confirmation
+
+After the table, ask which modules to operate on. Offer batch options appropriate to the discovered state, for example:
+
+```
+Which modules should I operate on?
+1. All — [N source + M test modules]
+2. Source modules only
+3. Test projects only
+4. A specific subset — list which ones
+```
+
+Do NOT default to all modules. Do NOT write anything until the user confirms. If the user selects a subset, list exactly which modules will be affected before proceeding.
+
+If `--modules` was provided, skip 4a–4c and proceed directly to Step 5 with those modules.
 
 ## Step 5 — Upsert Modules
 
@@ -67,14 +109,21 @@ For each selected module, apply upsert logic independently:
 
 ### 5a. Scaffold (conditional)
 
-If the project file (`.csproj` / `.sqlproj`) **does not exist**:
+**Source modules** — if the project file (`.csproj` / `.sqlproj`) **does not exist**:
 - Follow `csharp/scaffolding.md` and `csharp/modularization.md` as the joint source of truth.
 - Create the project file, folder structure, and starter code.
-- Add the project to the `.sln` file.
+- Add the project to the `.sln` file under the `src` solution folder.
 
 If the project file **already exists**:
 - Skip all scaffolding. Do not modify any source files.
 - Log: `[Module] — project exists, scaffolding skipped.`
+
+**Test modules** — if the test project does not exist:
+- Follow the same language-appropriate scaffolding rules as for source modules (e.g., `csharp/scaffolding.md` for .NET). Those rules define the test project file format, dependencies, starter code, and solution wiring under the `tests/` folder.
+
+If the test project **already exists**:
+- Skip all scaffolding. Do not modify any test source files.
+- Log: `[Module].Tests — project exists, scaffolding skipped.`
 
 ### 5b. CLAUDE.md (always)
 
@@ -133,8 +182,10 @@ For every selected module, regardless of whether it was just scaffolded or alrea
 ```
 
 **Handle existing CLAUDE.md:**
-- Existing file: preserve all content. Rewrite only the `## Rules` section.
+- Existing file: preserve all content except `## Rules`. Apply only the diff confirmed in Step 4 — add the rules marked `+`, remove the rules marked `-`. Do not touch Module Purpose, Key Contents, or Dependency Constraints.
 - No file: create from template above.
+
+**Test module CLAUDE.md:** Use the same template. Module Purpose should name the source module under test and list what kinds of tests it contains (unit, integration). Dependency Constraints should list the tested assembly and the language-appropriate test frameworks. Apply rules from the **Tests** column of the table above, selecting `Y (C#)` rules for C# test projects and `Y (TS)` rules for TypeScript test projects.
 
 ### 5c. Root CLAUDE.md
 
