@@ -21,7 +21,7 @@ The `rules/` directory must exist at the repo root with at least `rules/csharp/m
 Parse `$ARGUMENTS`:
 
 - **`ProjectNamespace`** (optional): The root namespace for the solution (e.g., `Corvel.ToDos`, `MyCompany.Billing`). Drives all assembly naming via `[ProjectNamespace].[AssemblyType]`. If omitted, discover it from existing `.csproj`/`.sqlproj` files.
-- **`--modules`** (optional): Comma-separated list of modules to operate on. Valid source module names: `Common`, `Abstractions`, `Implementation`, `Repository`, `Database`, `Client`, `Web.Core`, `Web.Server`, `Web.Api`, `Angular`, `Cli`. Test modules follow the pattern `[SourceModule].Tests` (e.g., `Common.Tests`, `Implementation.Tests`). If omitted, discover existing state first (Step 3), then present a review table and ask the user (Step 4).
+- **`--modules`** (optional): Comma-separated list of modules to operate on. Valid source module names: `Common`, `Abstractions`, `Implementation`, `Repository`, `Database`, `Client`, `Web.Core`, `Web.Server`, `Web.Api`, `Angular`, `React`, `Cli`. Test modules follow the pattern `[SourceModule].Tests` (e.g., `Common.Tests`, `Implementation.Tests`). If omitted, discover existing state first (Step 3), then present a review table and ask the user (Step 4).
 
 If arguments are missing or ambiguous, proceed to discovery.
 
@@ -131,29 +131,31 @@ For every selected module, regardless of whether it was just scaffolded or alrea
 
 **Determine applicable rules** using the minimum applicable set principle. Only include rules where the module genuinely needs that guidance:
 
-| Rule File | Common | Abstractions | Implementation | Repository | Database | Client | Web.Core | Web.Server / Web.Api | Cli | Angular | Tests |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| common/coding-style.md | Y | Y | Y | Y | — | Y | Y | Y | Y | Y | Y |
-| common/database.md | — | — | — | Y | Y | — | — | — | — | — | — |
-| common/logging.md | — | — | Y | — | — | Y | Y | Y | Y | — | — |
-| common/patterns.md | Y | Y | Y | Y | — | Y | Y | — | Y | Y | — |
-| common/security.md | — | — | — | Y | — | Y | Y | Y | Y | Y | — |
-| common/testing.md | — | — | — | — | — | — | — | — | — | — | Y |
-| common/command-line.md | — | — | — | — | — | — | — | — | Y | — | — |
-| csharp/coding-style.md | Y | Y | Y | Y | — | Y | Y | Y | Y | — | Y (C#) |
-| csharp/domain.md | — | Y | — | — | — | — | — | — | — | — | — |
-| csharp/services.md | — | — | Y | — | — | — | Y | — | Y | — | — |
-| csharp/persistence.md | — | — | — | Y | — | — | — | Y | — | — | — |
-| csharp/presentation.md | — | — | — | — | — | — | Y | Y | — | — | — |
-| csharp/hosting.md | — | — | — | — | — | — | — | Y | Y | — | — |
-| csharp/command-line.md | — | — | — | — | — | — | — | — | Y | — | — |
-| csharp/security.md | — | — | — | Y | — | Y | Y | Y | Y | — | — |
-| csharp/testing.md | — | — | — | — | — | — | — | — | — | — | Y (C#) |
-| typescript/coding-style.md | — | — | — | — | — | — | — | — | — | Y | Y (TS) |
-| typescript/angular.md | — | — | — | — | — | — | — | — | — | Y | — |
-| typescript/patterns.md | — | — | — | — | — | — | — | — | — | Y | — |
-| typescript/security.md | — | — | — | — | — | — | — | — | — | Y | — |
-| typescript/testing.md | — | — | — | — | — | — | — | — | — | — | Y (TS) |
+| Rule File | Common | Abstractions | Implementation | Repository | Database | Client | Web.Core | Web.Server / Web.Api | Cli | Angular | React | Tests |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| common/coding-style.md | Y | Y | Y | Y | — | Y | Y | Y | Y | Y | Y | Y |
+| common/database.md | — | — | — | Y | Y | — | — | — | — | — | — | — |
+| common/logging.md | — | — | Y | — | — | Y | Y | Y | Y | — | — | — |
+| common/patterns.md | Y | Y | Y | Y | — | Y | Y | — | Y | Y | Y | — |
+| common/security.md | — | — | — | Y | — | Y | Y | Y | Y | Y | Y | — |
+| common/testing.md | — | — | — | — | — | — | — | — | — | — | — | Y |
+| common/command-line.md | — | — | — | — | — | — | — | — | Y | — | — | — |
+| csharp/coding-style.md | Y | Y | Y | Y | — | Y | Y | Y | Y | — | — | Y (C#) |
+| csharp/domain.md | — | Y | — | — | — | — | — | — | — | — | — | — |
+| csharp/services.md | — | — | Y | — | — | — | Y | — | Y | — | — | — |
+| csharp/persistence.md | — | — | — | Y | — | — | — | Y | — | — | — | — |
+| csharp/presentation.md | — | — | — | — | — | — | Y | Y | — | — | — | — |
+| csharp/hosting.md | — | — | — | — | — | — | — | Y | Y | — | — | — |
+| csharp/command-line.md | — | — | — | — | — | — | — | — | Y | — | — | — |
+| csharp/security.md | — | — | — | Y | — | Y | Y | Y | Y | — | — | — |
+| csharp/testing.md | — | — | — | — | — | — | — | — | — | — | — | Y (C#) |
+| typescript/coding-style.md | — | — | — | — | — | — | — | — | — | Y | Y | Y (TS) |
+| typescript/frontend-arch.md | — | — | — | — | — | — | — | — | — | Y | Y | — |
+| typescript/angular.md | — | — | — | — | — | — | — | — | — | Y | — | — |
+| typescript/react.md | — | — | — | — | — | — | — | — | — | — | Y | — |
+| typescript/patterns.md | — | — | — | — | — | — | — | — | — | Y | Y | — |
+| typescript/security.md | — | — | — | — | — | — | — | — | — | Y | Y | — |
+| typescript/testing.md | — | — | — | — | — | — | — | — | — | — | — | Y (TS) |
 
 **Generate CLAUDE.md content:**
 
