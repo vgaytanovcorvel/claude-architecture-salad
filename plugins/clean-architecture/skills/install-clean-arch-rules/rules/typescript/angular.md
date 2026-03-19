@@ -353,6 +353,256 @@ Quick guide:
 - Test signal outputs via `component.outputName.subscribe()`
 - Use component harnesses for Material components
 
+## Clean Architecture in Angular
+
+> Angular-specific implementation of the clean architecture layers defined in [frontend-arch.md](frontend-arch.md). Read that file first for layer definitions, domain types, repository and service rules.
+
+### Repository Layer: `*-api.service.ts`
+
+Repositories in Angular are `@Injectable` classes that wrap `HttpClient`. Suffix with `-api.service.ts` to distinguish from business logic services.
+
+```typescript
+// features/users/api/user-api.service.ts
+@Injectable({ providedIn: 'root' })
+export class UserApiService implements IUserRepository {
+  private readonly http = inject(HttpClient)
+  private readonly baseUrl = inject(API_BASE_URL)
+
+  userSingleById(id: string): Promise<User> {
+    return firstValueFrom(
+      this.http.get<UserDto>(`${this.baseUrl}/users/${id}`).pipe(
+        map(dto => this.mapToDomain(dto)),
+        catchError(err => {
+          if (err.status === 404) throw new NotFoundException(`User not found (UserId: ${id})`)
+          throw new AppError(`API error ${err.status}`, 'API_ERROR')
+        })
+      )
+    )
+  }
+
+  userSingleOrDefaultById(id: string): Promise<User | null> {
+    return firstValueFrom(
+      this.http.get<UserDto>(`${this.baseUrl}/users/${id}`).pipe(
+        map(dto => this.mapToDomain(dto)),
+        catchError(err => err.status === 404 ? of(null) : throwError(() => err))
+      )
+    )
+  }
+
+  userCreate(data: CreateUserDto): Promise<User> {
+    return firstValueFrom(
+      this.http.post<UserDto>(`${this.baseUrl}/users`, data).pipe(
+        map(dto => this.mapToDomain(dto))
+      )
+    )
+  }
+
+  private mapToDomain(dto: UserDto): User {
+    return {
+      id: dto.user_id,
+      email: dto.email_address,
+      name: dto.display_name,
+      role: dto.role as UserRole,
+      isActive: dto.is_active,
+      createdAt: new Date(dto.created_at),
+    }
+  }
+}
+```
+
+See [typescript/patterns.md](patterns.md) for method naming conventions (`userSingleById`, `userFindAll`, etc.).
+
+### Service Layer: `*.service.ts`
+
+Business logic services depend on the repository interface, not the concrete `*ApiService`. Suffix with `.service.ts` (no `-api`).
+
+```typescript
+// features/users/services/user.service.ts
+@Injectable({ providedIn: 'root' })
+export class UserService implements IUserService {
+  private readonly userRepo = inject(UserApiService)
+
+  getUserById(id: string) {
+    return this.userRepo.userSingleOrDefaultById(id)
+  }
+
+  getActiveUsers() {
+    return this.userRepo.userFindAll({ isActive: true })
+  }
+
+  async createUser(data: CreateUserRequest): Promise<Result<User>> {
+    const parsed = createUserSchema.safeParse(data)
+    if (!parsed.success) return Result.fail(parsed.error.issues[0].message)
+
+    const existing = await this.userRepo.userSingleOrDefaultByEmail(data.email)
+    if (existing) return Result.fail(`Email ${data.email} is already in use`)
+
+    const user = await this.userRepo.userCreate(parsed.data)
+    return Result.ok(user)
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    const user = await this.userRepo.userSingleById(id)
+    if (user.role === 'admin') throw new ValidationError('Admin users cannot be deleted')
+    await this.userRepo.userDelete(id)
+  }
+}
+```
+
+### State Layer: Signals + `resource()`
+
+Use `resource()` / `rxResource()` for server state and `signal()` for client/UI state. Keep state in injectable services, not in components directly.
+
+```typescript
+// features/users/state/user-state.service.ts
+@Injectable({ providedIn: 'root' })
+export class UserStateService {
+  private readonly userService = inject(UserService)
+
+  // Server state via resource()
+  readonly activeUsers = resource({
+    loader: () => this.userService.getActiveUsers(),
+  })
+
+  // Client UI state
+  readonly selectedUserId = signal<string | null>(null)
+  readonly isDeleteDialogOpen = signal(false)
+
+  selectUser(id: string) { this.selectedUserId.set(id) }
+  openDeleteDialog() { this.isDeleteDialogOpen.set(true) }
+
+  closeDeleteDialog() {
+    this.isDeleteDialogOpen.set(false)
+    this.selectedUserId.set(null)
+  }
+
+  async confirmDelete() {
+    const id = this.selectedUserId()
+    if (!id) return
+    await this.userService.deleteUser(id)
+    this.activeUsers.reload()
+    this.closeDeleteDialog()
+  }
+}
+```
+
+**Rule:** Do NOT store server data in plain `signal()` arrays. Use `resource()` / `rxResource()` — they own loading/error state and cache invalidation via `.reload()`.
+
+### Smart Components (Pages)
+
+Smart components inject state services and pass data to presentational components via `input()`.
+
+```typescript
+// features/users/pages/users-page.component.ts
+@Component({
+  selector: 'app-users-page',
+  templateUrl: './users-page.component.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class UsersPageComponent {
+  protected readonly state = inject(UserStateService)
+}
+```
+
+```html
+<!-- users-page.component.html -->
+<app-user-list-view
+  [users]="state.activeUsers.value() ?? []"
+  [isLoading]="state.activeUsers.isLoading()"
+  [error]="state.activeUsers.error()?.message"
+  (deleteRequest)="state.selectUser($event); state.openDeleteDialog()"
+/>
+
+@if (state.isDeleteDialogOpen()) {
+  <app-confirm-dialog
+    (confirmed)="state.confirmDelete()"
+    (cancelled)="state.closeDeleteDialog()"
+  />
+}
+```
+
+### Presentational Components
+
+Receive all data via `input()`. Emit events via `output()`. No service injection for data concerns.
+
+```typescript
+// features/users/components/user-list-view/user-list-view.component.ts
+@Component({
+  selector: 'app-user-list-view',
+  templateUrl: './user-list-view.component.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class UserListViewComponent {
+  users = input.required<readonly User[]>()
+  isLoading = input<boolean>(false)
+  error = input<string | undefined>()
+  deleteRequest = output<string>()
+}
+```
+
+### Composition Root
+
+Provide the `API_BASE_URL` injection token and any environment-specific overrides in `app.config.ts`.
+
+```typescript
+// core/app.config.ts
+export const API_BASE_URL = new InjectionToken<string>('api.base.url')
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideHttpClient(withInterceptors([authInterceptor])),
+    provideRouter(routes),
+    { provide: API_BASE_URL, useValue: environment.apiBaseUrl },
+  ],
+}
+```
+
+For testing, override providers in `TestBed`:
+
+```typescript
+TestBed.configureTestingModule({
+  providers: [
+    { provide: UserApiService, useValue: mockUserApiService },
+  ],
+})
+```
+
+### Angular Feature Folder Structure
+
+```
+features/users/
+  api/
+    user-api.service.ts         ← repository (HttpClient wrapper)
+    user-api.service.spec.ts
+  services/
+    user.service.ts             ← business logic
+    user.service.spec.ts
+  state/
+    user-state.service.ts       ← signals + resource()
+    user-state.service.spec.ts
+  components/
+    user-card/
+      user-card.component.ts
+      user-card.component.html
+      user-card.component.scss
+      user-card.component.spec.ts
+    user-list-view/
+      user-list-view.component.ts
+      user-list-view.component.html
+      user-list-view.component.scss
+  pages/
+    users-page/
+      users-page.component.ts
+      users-page.component.html
+    user-edit-page/
+      user-edit-page.component.ts
+      user-edit-page.component.html
+  users.routes.ts
+  index.ts                      ← export public routes and types only
+```
+
+---
+
 ## Angular 19 Checklist
 
 Before committing Angular code:
