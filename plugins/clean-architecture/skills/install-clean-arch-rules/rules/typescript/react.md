@@ -7,7 +7,7 @@ paths:
 ---
 # TypeScript - React Clean Architecture
 
-> React-specific implementation of the clean architecture layers defined in [frontend-arch.md](frontend-arch.md). Read that file first for layer definitions, domain types, repository and service rules.
+> React-specific implementation of the clean architecture layers defined in [frontend-arch.md](frontend-arch.md). Read that file first for layer definitions, domain types, repository and service rules. See [css.md](css.md) for CSS architecture: design tokens, CSS Modules scoping rules, ITCSS structure, and theming.
 
 ---
 

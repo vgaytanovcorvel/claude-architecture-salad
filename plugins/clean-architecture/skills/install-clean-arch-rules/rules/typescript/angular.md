@@ -355,7 +355,7 @@ Quick guide:
 
 ## Clean Architecture in Angular
 
-> Angular-specific implementation of the clean architecture layers defined in [frontend-arch.md](frontend-arch.md). Read that file first for layer definitions, domain types, repository and service rules.
+> Angular-specific implementation of the clean architecture layers defined in [frontend-arch.md](frontend-arch.md). Read that file first for layer definitions, domain types, repository and service rules. See [css.md](css.md) for CSS architecture: design tokens, SCSS structure, ITCSS layers, theming, and Angular-specific rules (`::ng-deep` prohibition, `:host` usage).
 
 ### Repository Layer: `*-api.service.ts`
 

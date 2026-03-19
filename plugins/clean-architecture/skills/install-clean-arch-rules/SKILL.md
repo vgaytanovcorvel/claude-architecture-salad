@@ -37,6 +37,7 @@ rules/
 └── typescript/
     ├── angular.md
     ├── coding-style.md
+    ├── css.md
     ├── frontend-arch.md
     ├── patterns.md
     ├── react.md
