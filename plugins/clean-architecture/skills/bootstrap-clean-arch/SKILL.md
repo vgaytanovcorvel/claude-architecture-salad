@@ -38,6 +38,7 @@ If arguments are missing or ambiguous, ask the user.
    - `csharp/hosting.md` — Program.cs pipeline, background services, and containerization.
    - `csharp/command-line.md` — System.CommandLine patterns, DI wiring, and CLI conventions.
    - `common/coding-style.md` — universal coding conventions.
+   - `common/database.md` — relational database schema conventions (table/column naming, indexes, constraints, relationships).
 3. Build a catalog of rules organized by:
    - **Language**: common (applies to all), csharp, typescript
    - **Concern**: coding-style, testing, security, domain, services, persistence, presentation, hosting, logging
@@ -67,6 +68,7 @@ Use the **minimum applicable set** principle. Only include rules where the proje
 | Rule File | Common | Abstractions | Implementation | Repository | Client | Web.Core | Web.Server / Web.Api | Cli | Angular | Tests |
 |---|---|---|---|---|---|---|---|---|---|---|
 | common/coding-style.md | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y |
+| common/database.md | — | — | — | Y | — | — | — | — | — | — |
 | common/logging.md | — | — | Y | — | Y | Y | Y | Y | — | — |
 | common/patterns.md | Y | Y | Y | Y | Y | Y | — | Y | Y | — |
 | common/security.md | — | — | — | Y | Y | Y | Y | Y | Y | — |

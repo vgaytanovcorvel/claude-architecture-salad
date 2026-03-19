@@ -17,6 +17,7 @@ rules/
 ├── common/
 │   ├── coding-style.md
 │   ├── command-line.md
+│   ├── database.md
 │   ├── logging.md
 │   ├── patterns.md
 │   ├── security.md
