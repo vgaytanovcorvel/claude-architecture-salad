@@ -37,7 +37,9 @@ rules/
 └── typescript/
     ├── angular.md
     ├── coding-style.md
+    ├── frontend-arch.md
     ├── patterns.md
+    ├── react.md
     ├── security.md
     └── testing.md
 ```
