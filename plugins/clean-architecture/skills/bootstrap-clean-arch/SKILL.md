@@ -150,12 +150,13 @@ For every selected module, regardless of whether it was just scaffolded or alrea
 | csharp/security.md | — | — | — | Y | — | Y | Y | Y | Y | — | — | — |
 | csharp/testing.md | — | — | — | — | — | — | — | — | — | — | — | Y (C#) |
 | typescript/coding-style.md | — | — | — | — | — | — | — | — | — | Y | Y | Y (TS) |
+| typescript/css.md | — | — | — | — | — | — | — | — | — | Y | Y | — |
 | typescript/frontend-arch.md | — | — | — | — | — | — | — | — | — | Y | Y | — |
 | typescript/angular.md | — | — | — | — | — | — | — | — | — | Y | — | — |
 | typescript/react.md | — | — | — | — | — | — | — | — | — | — | Y | — |
 | typescript/patterns.md | — | — | — | — | — | — | — | — | — | Y | Y | — |
 | typescript/security.md | — | — | — | — | — | — | — | — | — | Y | Y | — |
-| typescript/testing.md | — | — | — | — | — | — | — | — | — | — | — | Y (TS) |
+| typescript/testing.md | — | — | — | — | — | — | — | — | — | Y | Y | Y (TS) |
 
 **Generate CLAUDE.md content:**
 
