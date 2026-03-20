@@ -46,7 +46,7 @@ Deploys bundled coding rules (common, C#, TypeScript) to `<repo-root>/rules/`. S
 | `rules/csharp/` | coding-style, domain, services, persistence, presentation, hosting, security, testing, modularization, scaffolding, command-line |
 | `rules/typescript/` | coding-style, patterns, security, testing, angular, frontend-arch, react, **css** |
 
-Rules are deployed using an OS-level bulk copy (`cp -rf` / `robocopy`) — no file-by-file generation.
+Rules are deployed using `cp -rf` (works on macOS, Linux, and Windows via Git Bash) — no file-by-file generation.
 
 ### `/bootstrap-clean-arch`
 
