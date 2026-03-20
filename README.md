@@ -44,7 +44,9 @@ Deploys bundled coding rules (common, C#, TypeScript) to `<repo-root>/rules/`. S
 |--------|-------|
 | `rules/common/` | coding-style, patterns, logging, security, testing, database, command-line |
 | `rules/csharp/` | coding-style, domain, services, persistence, presentation, hosting, security, testing, modularization, scaffolding, command-line |
-| `rules/typescript/` | coding-style, patterns, security, testing, angular, frontend-arch, react |
+| `rules/typescript/` | coding-style, patterns, security, testing, angular, frontend-arch, react, **css** |
+
+Rules are deployed using an OS-level bulk copy (`cp -rf` / `robocopy`) — no file-by-file generation.
 
 ### `/bootstrap-clean-arch`
 
@@ -57,6 +59,8 @@ Scaffolds a .NET clean architecture solution with proper dependency flow, genera
 **Test modules:** Common.Tests, Abstractions.Tests, Implementation.Tests, Repository.Tests, Web.Core.Tests, Web.Server.Tests, Web.Api.Tests, Cli.Tests
 
 When run without `--modules`, the skill discovers existing source and test projects, pre-computes proposed rule changes per module, and presents a review table before writing anything.
+
+**Angular and React modules** receive `typescript/css.md` and `typescript/testing.md` in addition to the standard TypeScript rules, reflecting that styles and tests are co-located with source in frontend projects.
 
 ## License
 
