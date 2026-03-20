@@ -87,10 +87,15 @@ public void Setup()
 
 ## Test Method Naming Convention
 
-Test methods MUST follow one of these patterns:
+C# is the authoritative owner of this naming syntax. Test method names MUST follow one of these patterns:
 
 1. **`<MethodName>_Should<Result>_When<Condition>`**
 2. **`<MethodName>_Should<Result>_Given<Condition>`**
+
+The three-part structure maps directly to the intent rule in [common/testing.md](../common/testing.md):
+- `<MethodName>` — what is under test
+- `Should<Result>` — expected outcome
+- `When/Given<Condition>` — the triggering condition
 
 ```csharp
 [TestMethod]
@@ -105,8 +110,8 @@ public async Task ProcessClaimAsync_ShouldUpdateStatus_GivenValidStatusTransitio
 
 **Method Signature Rules**:
 - Use `async Task` for async methods being tested
-- Use descriptive, specific condition descriptions
-- Make test intent clear from the method name alone
+- Use descriptive, specific condition descriptions — never vague words like `Works`, `Success`, `Valid`
+- The full intent (unit + outcome + condition) must be readable from the method name alone without opening the test body
 
 ## Mock Usage Standards
 

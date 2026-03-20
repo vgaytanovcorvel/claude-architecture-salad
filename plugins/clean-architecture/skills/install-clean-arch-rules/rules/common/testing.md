@@ -26,21 +26,19 @@ Examples:
 - `OrderValidator` -> `OrderValidatorTests`
 - `ClaimDataMapper` -> `ClaimDataMapperTests`
 
-## Test Method Naming
+## Test Naming — Intent Rule (Language-Agnostic)
 
-Test methods MUST follow one of these patterns:
+Every test name MUST communicate three things, regardless of syntax:
 
-1. **`<MethodName>_Should<Result>_When<Condition>`**
-2. **`<MethodName>_Should<Result>_Given<Condition>`**
+1. **What is under test** — the unit, method, or component being exercised
+2. **What outcome is expected** — the result, return value, side-effect, or error
+3. **Under what condition** — the input state or scenario that triggers the outcome
 
-Examples:
-```
-GetUserAsync_ShouldReturnUser_WhenUserExists
-CreateOrderAsync_ShouldThrowValidationException_WhenOrderNumberIsEmpty
-ProcessClaimAsync_ShouldUpdateStatus_GivenValidStatusTransition
-```
+The syntax used to express this depends on the language and framework:
+- **C#** uses underscore-separated method names — see [csharp/testing.md](../csharp/testing.md)
+- **TypeScript/JavaScript** uses nested `describe`/`it` string blocks — see [typescript/testing.md](../typescript/testing.md)
 
-Make test intent clear from the method name alone. Use descriptive, specific condition descriptions.
+A test name that omits any of the three elements is incomplete. `GetUser_ShouldWork` and `it('works')` are both forbidden.
 
 ## AAA Pattern (Arrange-Act-Assert)
 
